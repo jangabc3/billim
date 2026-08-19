@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: billim-backend
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/billim
+    username: billim
+    password: billim1234
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    # Hibernate가 테이블을 먼저 만든 다음 data.sql이 실행되도록 순서 보장.
+    # 이거 없으면 "테이블이 없다"는 에러로 data.sql이 먼저 실패하는 흔한 이슈가 생김.
+    defer-datasource-initialization: true
+    hibernate:
+      # 개발 초기엔 update로 편하게 가고, 스키마가 안정되면 validate로 바꾸고 마이그레이션 도구(Flyway 등)로 전환 예정
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        # Hibernate 6부터는 hibernate-spatial이 위 표준 dialect에 자동으로 공간 타입을 얹어줘서
+        # 별도의 PostGIS 전용 dialect 클래스를 지정할 필요가 없음 (5.x 때와 다른 점)
+    show-sql: true
+
+  sql:
+    init:
+      mode: always # data.sql 시드 데이터 항상 실행 (개발 단계)
+
+server:
+  port: 8080
+
+logging:
+  level:
+    com.billim: DEBUG

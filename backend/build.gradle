@@ -1,0 +1,67 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.16'
+    id 'io.spring.dependency-management' version '1.1.6'
+}
+
+group = 'com.billim'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // 웹 + JPA
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // PostgreSQL + PostGIS (위치 검색용 Point 타입 매핑)
+    runtimeOnly 'org.postgresql:postgresql'
+    implementation 'org.hibernate.orm:hibernate-spatial:6.5.2.Final'
+
+    // QueryDSL (동적 검색 쿼리: 카테고리+구+거리+무료여부 조합)
+    implementation 'com.querydsl:querydsl-jpa:5.1.0:jakarta'
+    annotationProcessor 'com.querydsl:querydsl-apt:5.1.0:jakarta'
+    annotationProcessor 'jakarta.annotation:jakarta.annotation-api'
+    annotationProcessor 'jakarta.persistence:jakarta.persistence-api'
+
+    // 서울시 API XML 파싱
+    implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml'
+
+    // 공유누리 API는 JSON이라 기본 jackson-databind(웹 스타터에 포함)로 충분
+
+    // 인증/인가 — 다음 단계에서 JWT 필터·UserDetailsService 구현 예정
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    // API 문서화
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
+
+    // 외부 API(공유누리·서울시) 장애 대응 — Timeout/Retry/Circuit Breaker
+    implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
+    implementation 'org.springframework.boot:spring-boot-starter-aop'
+
+    // 고도화 단계에서 붙일 것들 (지금은 주석 처리)
+    // implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    // implementation 'org.springframework.boot:spring-boot-starter-batch'
+
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.testcontainers:junit-jupiter:1.20.1'
+    testImplementation 'org.testcontainers:postgresql:1.20.1'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "빌림",
+    "slug": "billim-app",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "billim",
+    "splash": {
+      "backgroundColor": "#F3F4F6"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.billim.app"
+    },
+    "android": {
+      "package": "com.billim.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#F3F4F6"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-asset"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

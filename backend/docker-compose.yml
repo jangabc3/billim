@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: billim-db
+    environment:
+      POSTGRES_DB: billim
+      POSTGRES_USER: billim
+      POSTGRES_PASSWORD: billim1234
+    ports:
+      - "5432:5432"
+    volumes:
+      - billim-db-data:/var/lib/postgresql/data
+
+volumes:
+  billim-db-data:
