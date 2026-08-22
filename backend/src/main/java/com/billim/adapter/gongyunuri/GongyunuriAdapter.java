@@ -6,6 +6,7 @@ import com.billim.domain.resource.ReceptionStatus;
 import com.billim.domain.resource.ResourceSource;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpMethod;
+import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 import java.math.BigDecimal;
@@ -25,6 +26,7 @@ import java.util.stream.Collectors;
  * [중요] 전국 데이터이고 지역 필터 파라미터가 없어서, 페이지네이션으로 전체를 다 받은 뒤
  * addr에 "서울"이 포함된 것만 우리 쪽에서 걸러낸다.
  */
+@Component
 public class GongyunuriAdapter {
 
     private final ObjectMapper objectMapper = new ObjectMapper();

@@ -16,10 +16,7 @@ import java.time.LocalDateTime;
  * Upsert(신규면 INSERT, 이미 있으면 UPDATE)로 처리한다.
  */
 @Entity
-@Table(
-    name = "public_resources",
-    uniqueConstraints = @UniqueConstraint(columnNames = {"source", "external_id"})
-)
+@Table(name = "public_resources", uniqueConstraints = @UniqueConstraint(columnNames = { "source", "external_id" }))
 public class PublicResource {
 
     @Id
@@ -83,11 +80,11 @@ public class PublicResource {
     private RentalItem rentalItem;
 
     private String imageUrl;
-    private String phone;           // 실제 문의 전화 — 서울시 API TELNO
-    private String operatingHours;  // 예: "07:00 ~ 19:00" — 서울시 API V_MIN/V_MAX 조합
+    private String phone; // 실제 문의 전화 — 서울시 API TELNO
+    private String operatingHours; // 예: "07:00 ~ 19:00" — 서울시 API V_MIN/V_MAX 조합
 
     private LocalDateTime externalUpdatedAt; // 원본 기관에서의 마지막 수정 시각
-    private LocalDateTime lastSyncedAt;      // 빌림이 마지막으로 수집한 시각
+    private LocalDateTime lastSyncedAt; // 빌림이 마지막으로 수집한 시각
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -96,13 +93,13 @@ public class PublicResource {
     }
 
     public static PublicResource fromExternal(ResourceSource source, String externalId, String name,
-                                               Category category, String address, String gu, String dong,
-                                               BigDecimal latitude, BigDecimal longitude,
-                                               String fee, ReceptionStatus receptionStatus,
-                                               LocalDateTime receptionEndAt,
-                                               String reservationUrl, String imageUrl,
-                                               String phone, String operatingHours,
-                                               LocalDateTime externalUpdatedAt) {
+            Category category, String address, String gu, String dong,
+            BigDecimal latitude, BigDecimal longitude,
+            String fee, ReceptionStatus receptionStatus,
+            LocalDateTime receptionEndAt,
+            String reservationUrl, String imageUrl,
+            String phone, String operatingHours,
+            LocalDateTime externalUpdatedAt) {
         PublicResource r = new PublicResource();
         r.source = source;
         r.externalId = externalId;
@@ -128,8 +125,8 @@ public class PublicResource {
 
     /** 외부 API 재수집 시 같은 (source, externalId) row를 이 메서드로 갱신한다 (Upsert). */
     public void syncFromExternal(String name, String address, String fee,
-                                  ReceptionStatus receptionStatus, String imageUrl,
-                                  LocalDateTime externalUpdatedAt) {
+            ReceptionStatus receptionStatus, String imageUrl,
+            LocalDateTime externalUpdatedAt) {
         this.name = name;
         this.address = address;
         this.fee = fee;
@@ -144,20 +141,75 @@ public class PublicResource {
         this.createdAt = LocalDateTime.now();
     }
 
-    public Long getId() { return id; }
-    public ResourceSource getSource() { return source; }
-    public String getName() { return name; }
-    public Category getCategory() { return category; }
-    public String getAddress() { return address; }
-    public String getGu() { return gu; }
-    public BigDecimal getLatitude() { return latitude; }
-    public BigDecimal getLongitude() { return longitude; }
-    public String getFee() { return fee; }
-    public ReceptionStatus getReceptionStatus() { return receptionStatus; }
-    public LocalDateTime getReceptionEndAt() { return receptionEndAt; }
-    public ReservationType getReservationType() { return reservationType; }
-    public String getReservationUrl() { return reservationUrl; }
-    public String getImageUrl() { return imageUrl; }
-    public LocalDateTime getLastSyncedAt() { return lastSyncedAt; }
-    public RentalItem getRentalItem() { return rentalItem; }
+    public Long getId() {
+        return id;
+    }
+
+    public ResourceSource getSource() {
+        return source;
+    }
+
+    public String getExternalId() {
+        return externalId;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public Category getCategory() {
+        return category;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public String getGu() {
+        return gu;
+    }
+
+    public BigDecimal getLatitude() {
+        return latitude;
+    }
+
+    public BigDecimal getLongitude() {
+        return longitude;
+    }
+
+    public String getFee() {
+        return fee;
+    }
+
+    public ReceptionStatus getReceptionStatus() {
+        return receptionStatus;
+    }
+
+    public LocalDateTime getReceptionEndAt() {
+        return receptionEndAt;
+    }
+
+    public ReservationType getReservationType() {
+        return reservationType;
+    }
+
+    public String getReservationUrl() {
+        return reservationUrl;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public LocalDateTime getExternalUpdatedAt() {
+        return externalUpdatedAt;
+    }
+
+    public LocalDateTime getLastSyncedAt() {
+        return lastSyncedAt;
+    }
+
+    public RentalItem getRentalItem() {
+        return rentalItem;
+    }
 }
