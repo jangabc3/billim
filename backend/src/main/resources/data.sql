@@ -20,6 +20,7 @@ VALUES
      now(), now()),
 
     ('SHARENURI', 'SEED-003', '충전 전동드릴', 'TOOL', '서울 성동구 성수동', '성동구',
-     37.547, 127.047,
-     '무료', 'UNKNOWN', 'EXTERNAL_LINK',
-     'https://www.eshare.go.kr', null, now(), now());
+    37.547, 127.047,
+    '무료', 'UNKNOWN', 'EXTERNAL_LINK',
+    'https://www.eshare.go.kr', null, now(), now())
+    ON CONFLICT (source, external_id) DO NOTHING;

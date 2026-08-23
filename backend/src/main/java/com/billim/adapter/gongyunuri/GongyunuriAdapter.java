@@ -25,6 +25,8 @@ import java.util.stream.Collectors;
  * [중요] 이 목록 API는 카테고리·이용료·재고 여부를 안 준다. 상세 API 연동은 다음 단계.
  * [중요] 전국 데이터이고 지역 필터 파라미터가 없어서, 페이지네이션으로 전체를 다 받은 뒤
  * addr에 "서울"이 포함된 것만 우리 쪽에서 걸러낸다.
+ * [중요] 일부 자원(예: 관공서명만 있고 도로명주소가 없는 경우)은 "구"를 정규식으로 못 뽑아낼 수 있다.
+ * gu 컬럼이 DB에서 필수값이라, 못 찾으면 "확인 필요"로 채워서 억지로 값을 지어내지 않는다.
  */
 @Component
 public class GongyunuriAdapter {
@@ -159,11 +161,12 @@ public class GongyunuriAdapter {
 
     private static final Pattern GU_PATTERN = Pattern.compile("(\\S+구)\\s");
 
+    // gu는 DB 필수값(nullable=false)이라 못 찾으면 "확인 필요"로 채운다 — null을 넣으면 저장 자체가 실패한다.
     private String extractGu(String addr) {
         if (addr == null)
-            return null;
+            return "확인 필요";
         Matcher m = GU_PATTERN.matcher(addr);
-        return m.find() ? m.group(1) : null;
+        return m.find() ? m.group(1) : "확인 필요";
     }
 
     private BigDecimal toDecimal(Double value) {
