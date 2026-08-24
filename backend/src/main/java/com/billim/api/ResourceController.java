@@ -5,6 +5,8 @@ import com.billim.repository.PublicResourceRepository;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.http.ResponseEntity;
 
 import java.util.List;
 
@@ -29,6 +31,18 @@ public class ResourceController {
                 .toList();
     }
 
+    /**
+     * 자원 하나만 정확히 조회. 상세 화면이 이걸 쓴다.
+     * 없으면 404를 정직하게 돌려준다 — 빈 데이터로 얼버무리지 않는다.
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<PublicResourceResponse> getOne(@PathVariable Long id) {
+        return publicResourceRepository.findById(id)
+                .map(this::toResponse)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     private PublicResourceResponse toResponse(PublicResource r) {
         return new PublicResourceResponse(
                 r.getId(),
@@ -45,7 +59,6 @@ public class ResourceController {
                 r.getReservationType(),
                 r.getReservationUrl(),
                 r.getImageUrl(),
-                r.getLastSyncedAt()
-        );
+                r.getLastSyncedAt());
     }
 }
