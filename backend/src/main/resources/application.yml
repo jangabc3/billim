@@ -34,3 +34,7 @@ logging:
 
 gongyunuri:
   api-key: ${GONGYUNURI_API_KEY:}
+
+seoul:
+  reservation:
+    api-key: ${SEOUL_API_KEY:}
