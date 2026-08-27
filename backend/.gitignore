@@ -6,4 +6,5 @@ build/
 out/
 bin/
 .DS_Store
-application-local.ymlserver.log
+application-local.yml
+server.log
