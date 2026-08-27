@@ -70,6 +70,7 @@ public class SeoulReservationAdapter {
 
             if (response.getRows() != null && !response.getRows().isEmpty()) {
                 response.getRows().stream()
+                        .filter(this::hasValidCoordinate)
                         .map(this::toPublicResource)
                         .forEach(result::add);
             } else {
@@ -116,6 +117,13 @@ public class SeoulReservationAdapter {
         } catch (Exception e) {
             throw new IllegalStateException("서울시 공공서비스예약 XML 파싱 실패: " + e.getMessage(), e);
         }
+    }
+
+    // 좌표 없는 자원은 DB의 longitude/latitude NOT NULL 제약조건 위반으로 저장이 실패한다.
+    // 위치 기반 검색(PostGIS)이 핵심 기능인 서비스 특성상, 좌표 없는 자원은 애초에 걸러낸다.
+    private boolean hasValidCoordinate(SeoulReservationXmlResponse.Row row) {
+        return row.getX() != null && !row.getX().isBlank()
+                && row.getY() != null && !row.getY().isBlank();
     }
 
     private PublicResource toPublicResource(SeoulReservationXmlResponse.Row row) {
