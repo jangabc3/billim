@@ -3,7 +3,10 @@ package com.billim.domain.resource;
 import com.billim.domain.item.Category;
 import com.billim.domain.item.RentalItem;
 import jakarta.persistence.*;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.PrecisionModel;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -18,6 +21,9 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "public_resources", uniqueConstraints = @UniqueConstraint(columnNames = { "source", "external_id" }))
 public class PublicResource {
+
+    // SRID 4326 = WGS84, GPS가 쓰는 전 세계 표준 위경도 좌표계.
+    private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory(new PrecisionModel(), 4326);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -110,6 +116,7 @@ public class PublicResource {
         r.dong = dong;
         r.latitude = latitude;
         r.longitude = longitude;
+        r.location = toPoint(latitude, longitude);
         r.fee = fee;
         r.receptionStatus = receptionStatus;
         r.receptionEndAt = receptionEndAt;
@@ -121,6 +128,22 @@ public class PublicResource {
         r.externalUpdatedAt = externalUpdatedAt;
         r.lastSyncedAt = LocalDateTime.now();
         return r;
+    }
+
+    /**
+     * 위경도(BigDecimal) → PostGIS Point 변환.
+     * JTS Coordinate는 (x, y) = (경도, 위도) 순서이므로 헷갈리지 않도록 주의.
+     * latitude/longitude가 null이면 location도 null로 둔다 — 현재는 어댑터 단에서
+     * 좌표 없는 자원을 이미 걸러내고 있어 실제로는 호출되지 않지만, 방어적으로 처리한다.
+     */
+    private static Point toPoint(BigDecimal latitude, BigDecimal longitude) {
+        if (latitude == null || longitude == null) {
+            return null;
+        }
+        Point point = GEOMETRY_FACTORY.createPoint(
+                new Coordinate(longitude.doubleValue(), latitude.doubleValue()));
+        point.setSRID(4326);
+        return point;
     }
 
     /** 외부 API 재수집 시 같은 (source, externalId) row를 이 메서드로 갱신한다 (Upsert). */
@@ -175,6 +198,10 @@ public class PublicResource {
 
     public BigDecimal getLongitude() {
         return longitude;
+    }
+
+    public Point getLocation() {
+        return location;
     }
 
     public String getFee() {
