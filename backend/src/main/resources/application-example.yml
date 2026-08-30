@@ -1,0 +1,12 @@
+# application-local.yml의 예시 파일.
+# 이 저장소를 새로 클론했다면, 이 파일을 복사해서 application-local.yml로 저장하고
+# 아래 값들을 본인이 발급받은 실제 API 키로 채워 넣어야 한다.
+#
+#   cp application-example.yml application-local.yml
+
+gongyunuri:
+  api-key: YOUR_GONGYUNURI_API_KEY
+
+seoul:
+  reservation:
+    api-key: YOUR_SEOUL_OPEN_DATA_API_KEY
