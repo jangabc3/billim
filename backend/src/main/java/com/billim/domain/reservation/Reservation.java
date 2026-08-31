@@ -26,7 +26,7 @@ public class Reservation {
     private ReservationStatus status;
 
     private LocalDateTime confirmedAt;
-    private LocalDateTime expiresAt;  // 미방문 시 자동 만료 기준 시각 (Scheduler가 체크)
+    private LocalDateTime expiresAt;
     private LocalDateTime rentedAt;
     private LocalDateTime returnedAt;
 
@@ -52,7 +52,6 @@ public class Reservation {
         this.createdAt = LocalDateTime.now();
     }
 
-    /** 상태 전이 규칙: 정해진 순서 밖의 전이는 막는다. */
     public void markRented() {
         require(ReservationStatus.CONFIRMED);
         this.status = ReservationStatus.RENTED;
@@ -80,11 +79,39 @@ public class Reservation {
     private void require(ReservationStatus expected) {
         if (this.status != expected) {
             throw new IllegalStateException(
-                String.format("%s 상태에서만 가능한 전이입니다. 현재 상태: %s", expected, this.status));
+                    String.format("%s 상태에서만 가능한 전이입니다. 현재 상태: %s", expected, this.status));
         }
     }
 
-    public Long getId() { return id; }
-    public ReservationStatus getStatus() { return status; }
-    public LocalDateTime getExpiresAt() { return expiresAt; }
+    public Long getId() {
+        return id;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public RentalItem getRentalItem() {
+        return rentalItem;
+    }
+
+    public ReservationStatus getStatus() {
+        return status;
+    }
+
+    public LocalDateTime getConfirmedAt() {
+        return confirmedAt;
+    }
+
+    public LocalDateTime getExpiresAt() {
+        return expiresAt;
+    }
+
+    public LocalDateTime getRentedAt() {
+        return rentedAt;
+    }
+
+    public LocalDateTime getReturnedAt() {
+        return returnedAt;
+    }
 }
