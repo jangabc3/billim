@@ -36,6 +36,20 @@ public class ReservationController {
         return ResponseEntity.noContent().build();
     }
 
+    /** 대여 시작 처리 — 담당자가 물건을 내줄 때 호출한다. */
+    @PostMapping("/{id}/start")
+    public ResponseEntity<Void> startRent(@PathVariable Long id) {
+        reservationService.startRent(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** 반납 처리 — 담당자가 물건을 돌려받을 때 호출한다. */
+    @PostMapping("/{id}/return")
+    public ResponseEntity<Void> returnItem(@PathVariable Long id) {
+        reservationService.returnItem(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ReservationResponse> getOne(@PathVariable Long id) {
         return reservationRepository.findById(id)
