@@ -8,3 +8,5 @@ bin/
 .DS_Store
 application-local.yml
 server.log
+test-data.sql
+signup.json
