@@ -5,10 +5,6 @@ import com.billim.domain.user.User;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
-/**
- * 대기 순번은 별도 카운터 컬럼 없이 requestedAt 오름차순 정렬로 계산한다.
- * (ORDER BY requested_at ASC) — 순번을 미리 저장해두면 취소·만료 시 재정렬이 번거로워짐.
- */
 @Entity
 @Table(name = "waitlist_entries")
 public class WaitlistEntry {
@@ -32,8 +28,8 @@ public class WaitlistEntry {
     @Column(nullable = false)
     private LocalDateTime requestedAt;
 
-    private LocalDateTime notifiedAt;   // 반납 발생 시 "예약 확정하세요" 알림 보낸 시각
-    private LocalDateTime notifyExpiresAt; // 알림 후 30분 확정 기한
+    private LocalDateTime notifiedAt;
+    private LocalDateTime notifyExpiresAt;
 
     protected WaitlistEntry() {
     }
@@ -59,7 +55,38 @@ public class WaitlistEntry {
         this.status = WaitlistStatus.EXPIRED;
     }
 
-    public Long getId() { return id; }
-    public LocalDateTime getRequestedAt() { return requestedAt; }
-    public WaitlistStatus getStatus() { return status; }
+    public void cancel() {
+        if (this.status == WaitlistStatus.CONVERTED || this.status == WaitlistStatus.EXPIRED) {
+            throw new IllegalStateException("이미 종료된 대기 신청은 취소할 수 없습니다.");
+        }
+        this.status = WaitlistStatus.EXPIRED;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public RentalItem getRentalItem() {
+        return rentalItem;
+    }
+
+    public LocalDateTime getRequestedAt() {
+        return requestedAt;
+    }
+
+    public LocalDateTime getNotifiedAt() {
+        return notifiedAt;
+    }
+
+    public LocalDateTime getNotifyExpiresAt() {
+        return notifyExpiresAt;
+    }
+
+    public WaitlistStatus getStatus() {
+        return status;
+    }
 }
