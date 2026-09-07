@@ -1,5 +1,6 @@
 package com.billim.service.reservation;
 
+import com.billim.domain.item.Inventory;
 import com.billim.domain.item.RentalItem;
 import com.billim.domain.reservation.Reservation;
 import com.billim.domain.reservation.WaitlistEntry;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -82,5 +84,16 @@ public class WaitlistService {
         LocalDateTime expiresAt = LocalDateTime.now().plusHours(NO_SHOW_EXPIRE_HOURS);
         Reservation reservation = new Reservation(entry.getUser(), entry.getRentalItem(), expiresAt);
         return reservationRepository.save(reservation);
+    }
+
+    @Transactional
+    public void expireOverdueNotifications() {
+        List<WaitlistEntry> overdue = waitlistRepository
+                .findByStatusAndNotifyExpiresAtBefore(WaitlistStatus.NOTIFIED, LocalDateTime.now());
+
+        for (WaitlistEntry entry : overdue) {
+            entry.expireNotification();
+            notifyNextInLine(entry.getRentalItem().getId());
+        }
     }
 }
