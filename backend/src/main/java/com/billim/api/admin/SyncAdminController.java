@@ -8,8 +8,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 지금은 인증 없이 열려있는 임시 관리자용 엔드포인트.
- * 나중에 Spring Security 붙으면 SYSTEM_ADMIN 권한 체크를 추가해야 한다.
+ * 관리자용 동기화 트리거 엔드포인트.
+ * SecurityConfig에서 /api/v1/admin/**은 SYSTEM_ADMIN 역할만 접근 가능하도록 막혀 있다.
  * 목적: 각 동기화 서비스가 실제로 DB에 데이터를 쌓는지 수동으로 눌러서 확인하기 위함.
  */
 @RestController
