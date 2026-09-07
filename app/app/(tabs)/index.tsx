@@ -1,11 +1,14 @@
-import { View, Text, Image, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, Image, Pressable, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Line, Circle } from 'react-native-svg';
 import TopBar from '../../src/components/TopBar';
 import ResourceCard from '../../src/components/ResourceCard';
+import type { ResourceCardItem } from '../../src/components/ResourceCard';
 import { useBookmarks } from '../../src/contexts/BookmarkContext';
-import { mockItems } from '../../src/data/mockResources';
+import { resourceApi, ApiError } from '../../src/api/client';
+import { toResourceCardItem } from '../../src/utils/mapResource';
 import { colors, radius } from '../../src/theme/tokens';
 
 const categories = [
@@ -20,11 +23,40 @@ export default function HomeScreen() {
   const router = useRouter();
   const { bookmarked, toggle } = useBookmarks();
 
+  const [items, setItems] = useState<ResourceCardItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadResources() {
+      setLoading(true);
+      setError(null);
+      try {
+        const page = await resourceApi.search({ receptionStatus: 'OPEN', size: 5 });
+        if (!cancelled) {
+          setItems(page.content.map((r) => toResourceCardItem(r)));
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof ApiError ? e.message : '자원을 불러오지 못했어요.');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadResources();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.surface }} contentContainerStyle={{ paddingBottom: 20 }}>
       <TopBar />
 
-      {/* 히어로 */}
       <View style={styles.hero}>
         <Image source={{ uri: 'https://example.com/hero.jpg' }} style={StyleSheet.absoluteFill} resizeMode="cover" />
         <LinearGradient
@@ -44,7 +76,6 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* 검색바 */}
       <Pressable onPress={() => router.push('/search')} style={styles.searchBar}>
         <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.ink3} strokeWidth={2.2}>
           <Circle cx="11" cy="11" r="7" /><Path d="M21 21l-4.3-4.3" />
@@ -52,7 +83,6 @@ export default function HomeScreen() {
         <Text style={styles.searchPlaceholder}>무엇이 필요하세요?</Text>
       </Pressable>
 
-      {/* 카테고리 */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catRow} contentContainerStyle={{ gap: 18, paddingHorizontal: 20 }}>
         {categories.map((c, i) => {
           const active = i === 0;
@@ -69,7 +99,6 @@ export default function HomeScreen() {
         })}
       </ScrollView>
 
-      {/* 오늘 빌릴 수 있어요 */}
       <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
         <View style={styles.sectionHead}>
           <View>
@@ -81,7 +110,25 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        {mockItems.map((item) => (
+        {loading && (
+          <View style={{ paddingVertical: 30, alignItems: 'center' }}>
+            <ActivityIndicator color={colors.brand} />
+          </View>
+        )}
+
+        {!loading && error && (
+          <View style={{ paddingVertical: 20 }}>
+            <Text style={{ color: colors.ink3, fontSize: 12.5, textAlign: 'center' }}>{error}</Text>
+          </View>
+        )}
+
+        {!loading && !error && items.length === 0 && (
+          <View style={{ paddingVertical: 20 }}>
+            <Text style={{ color: colors.ink3, fontSize: 12.5, textAlign: 'center' }}>표시할 자원이 없어요.</Text>
+          </View>
+        )}
+
+        {!loading && !error && items.map((item) => (
           <ResourceCard
             key={item.id}
             item={{ ...item, bookmarked: bookmarked.has(item.id) }}
