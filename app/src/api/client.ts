@@ -1,4 +1,5 @@
 import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
 import type { PublicResource } from "../types/resource";
 
 /**
@@ -10,7 +11,7 @@ import type { PublicResource } from "../types/resource";
  * - 실제 휴대폰(Expo Go): 컴퓨터의 사설 IP 주소 필요 (예: 192.168.0.12)
  *   터미널에서 ipconfig(윈도우) / ifconfig(맥) 로 확인 후 아래 값을 직접 바꿔서 사용.
  */
-const DEV_MACHINE_IP = '192.168.45.126';
+const DEV_MACHINE_IP = "192.168.45.173";
 const BASE_URL = `http://${DEV_MACHINE_IP}:8080/api/v1`;
 
 const TOKEN_KEY = "billim_access_token";
@@ -25,17 +26,29 @@ export class ApiError extends Error {
 
 // ===================== 토큰 저장/조회 =====================
 // 로그인 성공 시 저장해두고, 이후 인증이 필요한 요청마다 자동으로 꺼내 실어 보낸다.
+// expo-secure-store는 웹에서 동작하지 않아서, 웹은 localStorage로 분기한다.
 
 export async function saveToken(token: string): Promise<void> {
-  await SecureStore.setItemAsync(TOKEN_KEY, token);
+  if (Platform.OS === "web") {
+    localStorage.setItem(TOKEN_KEY, token);
+  } else {
+    await SecureStore.setItemAsync(TOKEN_KEY, token);
+  }
 }
 
 export async function getToken(): Promise<string | null> {
+  if (Platform.OS === "web") {
+    return localStorage.getItem(TOKEN_KEY);
+  }
   return SecureStore.getItemAsync(TOKEN_KEY);
 }
 
 export async function clearToken(): Promise<void> {
-  await SecureStore.deleteItemAsync(TOKEN_KEY);
+  if (Platform.OS === "web") {
+    localStorage.removeItem(TOKEN_KEY);
+  } else {
+    await SecureStore.deleteItemAsync(TOKEN_KEY);
+  }
 }
 
 // ===================== 공통 요청 함수 =====================
@@ -43,7 +56,7 @@ export async function clearToken(): Promise<void> {
 interface RequestOptions {
   method?: "GET" | "POST" | "DELETE" | "PUT";
   body?: unknown;
-  auth?: boolean; // true면 저장된 토큰을 Authorization 헤더에 실어 보낸다
+  auth?: boolean;
 }
 
 async function request<T>(
@@ -69,7 +82,6 @@ async function request<T>(
   });
 
   if (!res.ok) {
-    // 백엔드 GlobalExceptionHandler가 { message: "..." } 형태로 내려주므로 최대한 살려서 보여준다.
     let message = `요청 실패 (${res.status})`;
     try {
       const errBody = await res.json();
@@ -83,7 +95,12 @@ async function request<T>(
   if (res.status === 204) {
     return undefined as T;
   }
-  return res.json();
+
+  const text = await res.text();
+  if (!text) {
+    return undefined as T;
+  }
+  return JSON.parse(text);
 }
 
 // ===================== 자원 검색 =====================
