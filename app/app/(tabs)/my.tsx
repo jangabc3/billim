@@ -1,7 +1,9 @@
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
 import Svg, { Path, Rect } from 'react-native-svg';
 import TopBar from '../../src/components/TopBar';
 import { useBookmarks } from '../../src/contexts/BookmarkContext';
+import { useAuth } from '../../src/contexts/AuthContext';
 import { colors, radius } from '../../src/theme/tokens';
 
 const menuRows = [
@@ -11,19 +13,40 @@ const menuRows = [
 ];
 
 export default function MyScreen() {
+  const router = useRouter();
   const { bookmarked } = useBookmarks();
+  const { isLoggedIn, userName, loading, logout } = useAuth();
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.surface }} contentContainerStyle={{ paddingBottom: 20 }}>
       <TopBar />
 
-      <View style={styles.greeting}>
-        <View style={styles.avatar}><Text style={styles.avatarText}>빌</Text></View>
-        <View>
-          <Text style={styles.hello}>안녕하세요</Text>
-          <Text style={styles.greetTitle}>빌림을 시작해 볼까요?</Text>
+      {!loading && !isLoggedIn && (
+        <View style={styles.authCard}>
+          <Text style={styles.authTitle}>로그인하고 시작해보세요</Text>
+          <Text style={styles.authDesc}>예약 현황과 대기 순번을 확인할 수 있어요.</Text>
+          <View style={styles.authBtnRow}>
+            <Pressable style={styles.loginBtn} onPress={() => router.push('/login')}>
+              <Text style={styles.loginBtnText}>로그인</Text>
+            </Pressable>
+            <Pressable style={styles.signupBtn} onPress={() => router.push('/signup')}>
+              <Text style={styles.signupBtnText}>회원가입</Text>
+            </Pressable>
+          </View>
         </View>
-      </View>
+      )}
+
+      {!loading && isLoggedIn && (
+        <View style={styles.greeting}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{userName ? userName[0] : '빌'}</Text>
+          </View>
+          <View>
+            <Text style={styles.hello}>안녕하세요</Text>
+            <Text style={styles.greetTitle}>{userName ?? '회원'}님, 반가워요!</Text>
+          </View>
+        </View>
+      )}
 
       <View style={styles.statBar}>
         <StatCell value={String(bookmarked.size)} label="관심 자원" />
@@ -50,6 +73,21 @@ export default function MyScreen() {
             </Svg>
           </Pressable>
         ))}
+
+        {!loading && isLoggedIn && (
+          <Pressable style={styles.menuRow} onPress={logout}>
+            <View style={styles.menuIcon}>
+              <Svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="#E0453C" strokeWidth={2}>
+                <Path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <Path d="M16 17l5-5-5-5" />
+                <Path d="M21 12H9" />
+              </Svg>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.menuLabel, { color: '#E0453C' }]}>로그아웃</Text>
+            </View>
+          </Pressable>
+        )}
       </View>
 
       <View style={styles.infoBox}>
@@ -70,6 +108,14 @@ function StatCell({ value, label, highlight }: { value: string; label: string; h
 }
 
 const styles = StyleSheet.create({
+  authCard: { marginHorizontal: 20, marginBottom: 18, padding: 20, borderRadius: radius.lg, backgroundColor: colors.brandTint },
+  authTitle: { fontSize: 15.5, fontWeight: '800', color: colors.ink, marginBottom: 4 },
+  authDesc: { fontSize: 12, color: colors.ink3, marginBottom: 14 },
+  authBtnRow: { flexDirection: 'row', gap: 8 },
+  loginBtn: { flex: 1, height: 42, borderRadius: radius.md, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
+  loginBtnText: { fontSize: 13, fontWeight: '800', color: '#fff' },
+  signupBtn: { flex: 1, height: 42, borderRadius: radius.md, borderWidth: 1, borderColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
+  signupBtnText: { fontSize: 13, fontWeight: '800', color: colors.brand },
   greeting: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 4, paddingBottom: 18 },
   avatar: { width: 46, height: 46, borderRadius: 14, backgroundColor: colors.accentLime, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 15, fontWeight: '800' },
