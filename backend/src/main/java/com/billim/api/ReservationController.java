@@ -61,8 +61,11 @@ public class ReservationController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ReservationResponse> getOne(@PathVariable Long id) {
+    public ResponseEntity<ReservationResponse> getOne(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long id) {
         return reservationRepository.findById(id)
+                .filter(r -> r.getUser().getId().equals(userDetails.getUserId()))
                 .map(this::toResponse)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
