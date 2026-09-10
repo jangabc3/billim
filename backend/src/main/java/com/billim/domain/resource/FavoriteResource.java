@@ -5,10 +5,8 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(
-    name = "favorite_resources",
-    uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "public_resource_id"})
-)
+@Table(name = "favorite_resources", uniqueConstraints = @UniqueConstraint(columnNames = { "user_id",
+        "public_resource_id" }))
 public class FavoriteResource {
 
     @Id
@@ -37,5 +35,21 @@ public class FavoriteResource {
     @PrePersist
     void onCreate() {
         this.createdAt = LocalDateTime.now();
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public PublicResource getPublicResource() {
+        return publicResource;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
     }
 }
