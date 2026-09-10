@@ -8,6 +8,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/reservations")
 public class ReservationController {
@@ -27,6 +29,17 @@ public class ReservationController {
             @RequestBody ReservationCreateRequest request) {
         Reservation reservation = reservationService.reserve(userDetails.getUserId(), request.rentalItemId());
         return ResponseEntity.ok(toResponse(reservation));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<ReservationResponse>> getMyReservations(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        List<ReservationResponse> responses = reservationRepository
+                .findByUserIdOrderByCreatedAtDesc(userDetails.getUserId())
+                .stream()
+                .map(this::toResponse)
+                .toList();
+        return ResponseEntity.ok(responses);
     }
 
     @DeleteMapping("/{id}")
