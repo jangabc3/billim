@@ -9,12 +9,12 @@ import type { ResourceCardItem } from '../../src/components/ResourceCard';
 import { useBookmarks } from '../../src/contexts/BookmarkContext';
 import { resourceApi, ApiError } from '../../src/api/client';
 import { toResourceCardItem } from '../../src/utils/mapResource';
-import { colors, radius } from '../../src/theme/tokens';
+import { colors, radius, fonts } from '../../src/theme/tokens';
 
 const categories = [
   { key: 'all', label: '모두', icon: <><Line x1="4" y1="6" x2="20" y2="6" /><Line x1="4" y1="12" x2="14" y2="12" /><Line x1="4" y1="18" x2="10" y2="18" /></> },
   { key: 'tool', label: '공구', icon: <Path d="M14.7 6.3l3 3-8.4 8.4-4-1 1-4z" /> },
-  { key: 'suit', label: '정장', icon: <Path d="M8 4h8l2 4-4 2v12h-4V10L6 8z" /> },
+  { key: 'suit', label: '정장', icon: <Path d="M8 4h8l2 4-2 4v12h-4v-8h-4v8H6V8z" /> },
   { key: 'medical', label: '의료', icon: <><Circle cx="6" cy="17" r="3" /><Circle cx="18" cy="17" r="3" /><Path d="M6 17V9l6 2 3-5" /></> },
   { key: 'life', label: '생활', icon: <Path d="M12 3c-4 4-7 7-7 11a7 7 0 0 0 14 0c0-4-3-7-7-11z" /> },
 ];
@@ -40,7 +40,7 @@ export default function HomeScreen() {
         }
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof ApiError ? e.message : '자원을 불러오지 못했어요.');
+          setError(e instanceof ApiError ? e.message : '물품을 불러오지 못했어요.');
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -72,7 +72,7 @@ export default function HomeScreen() {
             필요한 건,{'\n'}
             <Text style={{ color: colors.accentLime }}>가까이서 빌려요.</Text>
           </Text>
-          <Text style={styles.heroDesc}>흩어진 공공 대여 자원을{'\n'}내 동네 기준으로 모아드려요</Text>
+          <Text style={styles.heroDesc}>흩어진 공공 대여 물품을{'\n'}내 동네 기준으로 모아드려요</Text>
         </View>
       </View>
 
@@ -93,7 +93,7 @@ export default function HomeScreen() {
                   {c.icon}
                 </Svg>
               </View>
-              <Text style={[styles.catLabel, active && { color: colors.brand, fontWeight: '800' }]}>{c.label}</Text>
+              <Text style={[styles.catLabel, active && { color: colors.brand, fontFamily: fonts.bold }]}>{c.label}</Text>
             </View>
           );
         })}
@@ -118,13 +118,13 @@ export default function HomeScreen() {
 
         {!loading && error && (
           <View style={{ paddingVertical: 20 }}>
-            <Text style={{ color: colors.ink3, fontSize: 12.5, textAlign: 'center' }}>{error}</Text>
+            <Text style={{ color: colors.ink3, fontSize: 12.5, fontFamily: fonts.regular, textAlign: 'center' }}>{error}</Text>
           </View>
         )}
 
         {!loading && !error && items.length === 0 && (
           <View style={{ paddingVertical: 20 }}>
-            <Text style={{ color: colors.ink3, fontSize: 12.5, textAlign: 'center' }}>표시할 자원이 없어요.</Text>
+            <Text style={{ color: colors.ink3, fontSize: 12.5, fontFamily: fonts.regular, textAlign: 'center' }}>표시할 물품이 없어요.</Text>
           </View>
         )}
 
@@ -145,8 +145,8 @@ export default function HomeScreen() {
             </Svg>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.alertTitle}>관심 지역알림</Text>
-            <Text style={styles.alertDesc}>새로 뜬 대여 자원을 놓치지 마세요.</Text>
+            <Text style={styles.alertTitle}>관심 지역 알림</Text>
+            <Text style={styles.alertDesc}>새로 뜬 대여 물품을 놓치지 마세요.</Text>
           </View>
           <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.accentLime} strokeWidth={2.4}>
             <Path d="M9 6l6 6-6 6" />
@@ -162,28 +162,28 @@ const styles = StyleSheet.create({
   heroContent: { flex: 1, justifyContent: 'flex-end', padding: 20 },
   tagRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
   limeDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: colors.accentLime },
-  tagText: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: colors.accentLime },
-  heroTitle: { fontSize: 22, fontWeight: '800', lineHeight: 28, color: '#fff' },
-  heroDesc: { fontSize: 12, color: 'rgba(255,255,255,0.78)', marginTop: 8, lineHeight: 17 },
+  tagText: { fontSize: 10.5, fontFamily: fonts.bold, letterSpacing: 1, color: colors.accentLime },
+  heroTitle: { fontSize: 22, fontFamily: fonts.bold, lineHeight: 28, color: '#fff' },
+  heroDesc: { fontSize: 12, fontFamily: fonts.regular, color: 'rgba(255,255,255,0.78)', marginTop: 8, lineHeight: 17 },
   searchBar: {
     marginHorizontal: 20, marginBottom: 18, height: 48, borderRadius: radius.full,
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line,
     flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 18,
   },
-  searchPlaceholder: { fontSize: 14, color: colors.ink3 },
+  searchPlaceholder: { fontSize: 14, fontFamily: fonts.regular, color: colors.ink3 },
   catRow: { marginBottom: 26, flexGrow: 0 },
   catItem: { alignItems: 'center', gap: 7, width: 50 },
   catCircle: { width: 50, height: 50, borderRadius: 25, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  catLabel: { fontSize: 11.5, color: colors.ink3 },
+  catLabel: { fontSize: 11.5, fontFamily: fonts.regular, color: colors.ink3 },
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 14 },
-  sectionEyebrow: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: colors.brand, marginBottom: 4 },
-  sectionTitle: { fontSize: 17, fontWeight: '800', color: colors.ink },
-  sectionMore: { fontSize: 12.5, color: colors.ink3, fontWeight: '700' },
+  sectionEyebrow: { fontSize: 10.5, fontFamily: fonts.bold, letterSpacing: 1, color: colors.brand, marginBottom: 4 },
+  sectionTitle: { fontSize: 17, fontFamily: fonts.bold, color: colors.ink },
+  sectionMore: { fontSize: 12.5, fontFamily: fonts.semibold, color: colors.ink3 },
   alertBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: '#161C26', borderRadius: radius.md, padding: 16, marginTop: 4,
   },
   alertIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(214,242,78,0.15)', alignItems: 'center', justifyContent: 'center' },
-  alertTitle: { fontSize: 13.5, fontWeight: '800', color: '#fff', marginBottom: 2 },
-  alertDesc: { fontSize: 11, color: 'rgba(255,255,255,0.65)' },
+  alertTitle: { fontSize: 13.5, fontFamily: fonts.bold, color: '#fff', marginBottom: 2 },
+  alertDesc: { fontSize: 11, fontFamily: fonts.regular, color: 'rgba(255,255,255,0.65)' },
 });

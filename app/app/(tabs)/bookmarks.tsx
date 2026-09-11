@@ -10,7 +10,7 @@ import { useBookmarks } from '../../src/contexts/BookmarkContext';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { favoriteApi, ApiError } from '../../src/api/client';
 import { toResourceCardItem } from '../../src/utils/mapResource';
-import { colors } from '../../src/theme/tokens';
+import { colors, fonts } from '../../src/theme/tokens';
 
 export default function BookmarksScreen() {
   const router = useRouter();
@@ -43,13 +43,13 @@ export default function BookmarksScreen() {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.surface }} contentContainerStyle={{ paddingBottom: 20 }}>
       <TopBar />
-      <SectionIntro eyebrow="Bookmarks" title="나중에 빌림" highlight="목록이에요." desc="관심 있는 자원은 여기에 차곡차곡 모아둘게요." />
+      <SectionIntro eyebrow="Bookmarks" title="저장해둔 물품," highlight="여기서 확인해요." desc="관심 가는 물품은 눌러서 저장해두세요." />
 
       <View style={{ paddingHorizontal: 20 }}>
         {!authLoading && !isLoggedIn && (
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>로그인하고 저장해보세요</Text>
-            <Text style={styles.emptyDesc}>로그인하면 관심 있는 자원을{'\n'}여기에 모아둘 수 있어요.</Text>
+            <Text style={styles.emptyDesc}>로그인하면 관심 있는 물품을{'\n'}여기에 모아둘 수 있어요.</Text>
             <Pressable style={styles.loginBtn} onPress={() => router.push('/login')}>
               <Text style={styles.loginBtnText}>로그인하기</Text>
             </Pressable>
@@ -63,7 +63,7 @@ export default function BookmarksScreen() {
         )}
 
         {isLoggedIn && !loading && error && (
-          <Text style={{ fontSize: 12.5, color: colors.ink3, textAlign: 'center', paddingTop: 30 }}>{error}</Text>
+          <Text style={{ fontSize: 12.5, fontFamily: fonts.regular, color: colors.ink3, textAlign: 'center', paddingTop: 30 }}>{error}</Text>
         )}
 
         {isLoggedIn && !loading && !error && items.length === 0 && (
@@ -73,8 +73,8 @@ export default function BookmarksScreen() {
                 <Path d="M6 4h12a1 1 0 0 1 1 1v15l-7-4-7 4V5a1 1 0 0 1 1-1z" />
               </Svg>
             </View>
-            <Text style={styles.emptyTitle}>아직 저장한 자원이 없어요</Text>
-            <Text style={styles.emptyDesc}>마음에 드는 자원의 북마크를 눌러{'\n'}여기에 모아보세요.</Text>
+            <Text style={styles.emptyTitle}>아직 저장한 물품이 없어요</Text>
+            <Text style={styles.emptyDesc}>마음에 드는 물품의 북마크를 눌러{'\n'}여기에 모아보세요.</Text>
           </View>
         )}
 
@@ -94,8 +94,8 @@ export default function BookmarksScreen() {
 const styles = StyleSheet.create({
   empty: { alignItems: 'center', paddingTop: 40, paddingHorizontal: 30 },
   emptyIcon: { width: 60, height: 60, borderRadius: 30, backgroundColor: colors.grayFill, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  emptyTitle: { fontSize: 14.5, fontWeight: '800', marginBottom: 6, color: colors.ink },
-  emptyDesc: { fontSize: 12.5, color: colors.ink3, textAlign: 'center', lineHeight: 18, marginBottom: 16 },
+  emptyTitle: { fontSize: 14.5, fontFamily: fonts.bold, marginBottom: 6, color: colors.ink },
+  emptyDesc: { fontSize: 12.5, fontFamily: fonts.regular, color: colors.ink3, textAlign: 'center', lineHeight: 18, marginBottom: 16 },
   loginBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10, backgroundColor: colors.brand },
-  loginBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  loginBtnText: { fontSize: 13, fontFamily: fonts.semibold, color: '#fff' },
 });

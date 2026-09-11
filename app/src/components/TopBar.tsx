@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
-import { colors, radius } from '../theme/tokens';
+import { colors, radius, fonts } from '../theme/tokens';
 
 export default function TopBar() {
   return (
@@ -31,10 +31,10 @@ export default function TopBar() {
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 14 },
   logo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  logoNum: { fontSize: 20, fontWeight: '900', color: colors.brand },
-  logoText: { fontSize: 17, fontWeight: '800', color: colors.ink },
+  logoNum: { fontSize: 20, fontFamily: fonts.bold, color: colors.brand },
+  logoText: { fontSize: 17, fontFamily: fonts.bold, color: colors.ink },
   right: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   loc: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.full, backgroundColor: colors.grayFill },
-  locText: { fontSize: 12.5, fontWeight: '700', color: colors.ink2 },
+  locText: { fontSize: 12.5, fontFamily: fonts.semibold, color: colors.ink2 },
   iconBtn: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
 });

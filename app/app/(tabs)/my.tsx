@@ -6,10 +6,10 @@ import TopBar from '../../src/components/TopBar';
 import { useBookmarks } from '../../src/contexts/BookmarkContext';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { reservationApi, ApiError, type ReservationResponse } from '../../src/api/client';
-import { colors, radius } from '../../src/theme/tokens';
+import { colors, radius, fonts } from '../../src/theme/tokens';
 
 const menuRows = [
-  { label: '관심 지역 설정', desc: '성동구를 기준으로 보고있어요', icon: <><Path d="M12 22s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z" /></> },
+  { label: '관심 지역 설정', desc: '성동구를 기준으로 보고 있어요', icon: <><Path d="M12 22s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z" /></> },
   { label: '신청 일정 알림', desc: '놓치지 않도록 안내해드릴게요', icon: <><Rect x="4" y="5" width="16" height="16" rx="2" /><Path d="M8 3v4M16 3v4M4 10h16" /></> },
   { label: '정보 오류 제보', desc: '정확한 정보를 함께 만들어요', icon: <><Rect x="3" y="6" width="18" height="14" rx="2" /><Path d="M3 10h18" /></> },
 ];
@@ -93,7 +93,7 @@ export default function MyScreen() {
       )}
 
       <View style={styles.statBar}>
-        <StatCell value={String(bookmarked.size)} label="관심 자원" />
+        <StatCell value={String(bookmarked.size)} label="관심 물품" />
         <View style={styles.divider} />
         <StatCell value={String(activeCount)} label="진행 중인 대여" />
         <View style={styles.divider} />
@@ -111,11 +111,11 @@ export default function MyScreen() {
           )}
 
           {!resLoading && resError && (
-            <Text style={{ fontSize: 12.5, color: colors.ink3, textAlign: 'center', paddingVertical: 16 }}>{resError}</Text>
+            <Text style={{ fontSize: 12.5, fontFamily: fonts.regular, color: colors.ink3, textAlign: 'center', paddingVertical: 16 }}>{resError}</Text>
           )}
 
           {!resLoading && !resError && reservations.length === 0 && (
-            <Text style={{ fontSize: 12.5, color: colors.ink3, paddingVertical: 16 }}>아직 예약한 자원이 없어요.</Text>
+            <Text style={{ fontSize: 12.5, fontFamily: fonts.regular, color: colors.ink3, paddingVertical: 16 }}>아직 예약한 물품이 없어요.</Text>
           )}
 
           {!resLoading && !resError && reservations.map((r) => (
@@ -187,33 +187,33 @@ function StatCell({ value, label, highlight }: { value: string; label: string; h
 
 const styles = StyleSheet.create({
   authCard: { marginHorizontal: 20, marginBottom: 18, padding: 20, borderRadius: radius.lg, backgroundColor: colors.brandTint },
-  authTitle: { fontSize: 15.5, fontWeight: '800', color: colors.ink, marginBottom: 4 },
-  authDesc: { fontSize: 12, color: colors.ink3, marginBottom: 14 },
+  authTitle: { fontSize: 15.5, fontFamily: fonts.bold, color: colors.ink, marginBottom: 4 },
+  authDesc: { fontSize: 12, fontFamily: fonts.regular, color: colors.ink3, marginBottom: 14 },
   authBtnRow: { flexDirection: 'row', gap: 8 },
   loginBtn: { flex: 1, height: 42, borderRadius: radius.md, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
-  loginBtnText: { fontSize: 13, fontWeight: '800', color: '#fff' },
+  loginBtnText: { fontSize: 13, fontFamily: fonts.bold, color: '#fff' },
   signupBtn: { flex: 1, height: 42, borderRadius: radius.md, borderWidth: 1, borderColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
-  signupBtnText: { fontSize: 13, fontWeight: '800', color: colors.brand },
+  signupBtnText: { fontSize: 13, fontFamily: fonts.bold, color: colors.brand },
   greeting: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 4, paddingBottom: 18 },
   avatar: { width: 46, height: 46, borderRadius: 14, backgroundColor: colors.accentLime, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: 15, fontWeight: '800' },
-  hello: { fontSize: 11.5, color: colors.ink3, marginBottom: 2 },
-  greetTitle: { fontSize: 17, fontWeight: '800', color: colors.ink },
+  avatarText: { fontSize: 15, fontFamily: fonts.bold },
+  hello: { fontSize: 11.5, fontFamily: fonts.regular, color: colors.ink3, marginBottom: 2 },
+  greetTitle: { fontSize: 17, fontFamily: fonts.bold, color: colors.ink },
   statBar: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 22, borderRadius: radius.md, backgroundColor: '#161C26', paddingVertical: 18 },
   divider: { width: 1, backgroundColor: 'rgba(255,255,255,0.12)' },
-  statValue: { fontSize: 15, fontWeight: '800', color: '#fff' },
-  statLabel: { fontSize: 10.5, color: 'rgba(255,255,255,0.6)', marginTop: 3 },
-  sectionTitle: { fontSize: 14, fontWeight: '800', color: colors.ink, marginBottom: 10 },
+  statValue: { fontSize: 15, fontFamily: fonts.bold, color: '#fff' },
+  statLabel: { fontSize: 10.5, fontFamily: fonts.regular, color: 'rgba(255,255,255,0.6)', marginTop: 3 },
+  sectionTitle: { fontSize: 14, fontFamily: fonts.bold, color: colors.ink, marginBottom: 10 },
   reservationRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.line },
-  reservationName: { fontSize: 13.5, fontWeight: '700', color: colors.ink },
-  reservationDate: { fontSize: 11, color: colors.ink3, marginTop: 3 },
+  reservationName: { fontSize: 13.5, fontFamily: fonts.semibold, color: colors.ink },
+  reservationDate: { fontSize: 11, fontFamily: fonts.regular, color: colors.ink3, marginTop: 3 },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
-  statusText: { fontSize: 11, fontWeight: '800' },
+  statusText: { fontSize: 11, fontFamily: fonts.bold },
   menuRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, borderTopWidth: 1, borderTopColor: colors.line },
   menuIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.grayFill, alignItems: 'center', justifyContent: 'center' },
-  menuLabel: { fontSize: 14, fontWeight: '700', color: colors.ink },
-  menuDesc: { fontSize: 11.5, color: colors.ink3, marginTop: 2 },
+  menuLabel: { fontSize: 14, fontFamily: fonts.semibold, color: colors.ink },
+  menuDesc: { fontSize: 11.5, fontFamily: fonts.regular, color: colors.ink3, marginTop: 2 },
   infoBox: { marginHorizontal: 20, marginTop: 4, padding: 16, borderRadius: radius.md, backgroundColor: colors.brandTint },
-  infoTitle: { fontSize: 13, fontWeight: '800', color: colors.brandStrong, marginBottom: 6 },
-  infoDesc: { fontSize: 12, color: colors.ink2, lineHeight: 18 },
+  infoTitle: { fontSize: 13, fontFamily: fonts.bold, color: colors.brandStrong, marginBottom: 6 },
+  infoDesc: { fontSize: 12, fontFamily: fonts.regular, color: colors.ink2, lineHeight: 18 },
 });

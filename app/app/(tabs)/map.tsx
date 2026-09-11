@@ -6,7 +6,7 @@ import SectionIntro from '../../src/components/SectionIntro';
 import ResourceCard from '../../src/components/ResourceCard';
 import { useBookmarks } from '../../src/contexts/BookmarkContext';
 import { mockItems } from '../../src/data/mockResources';
-import { colors, radius } from '../../src/theme/tokens';
+import { colors, radius, fonts } from '../../src/theme/tokens';
 
 export default function MapScreen() {
   const router = useRouter();
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
   mapBlob: { position: 'absolute', borderRadius: 14, backgroundColor: '#DCE4D8' },
   meDot: { position: 'absolute', left: 112, top: 138, width: 12, height: 12, borderRadius: 6, backgroundColor: '#2C5FE0' },
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 14 },
-  sectionEyebrow: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: colors.brand, marginBottom: 4 },
-  sectionTitle: { fontSize: 17, fontWeight: '800', color: colors.ink },
-  sectionCount: { fontSize: 12.5, color: colors.ink3, fontWeight: '700' },
+  sectionEyebrow: { fontSize: 10.5, fontFamily: fonts.bold, letterSpacing: 1, color: colors.brand, marginBottom: 4 },
+  sectionTitle: { fontSize: 17, fontFamily: fonts.bold, color: colors.ink },
+  sectionCount: { fontSize: 12.5, fontFamily: fonts.semibold, color: colors.ink3 },
 });

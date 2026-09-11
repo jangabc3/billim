@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import { resourceApi } from '../../../src/api/client';
 import type { PublicResource } from '../../../src/types/resource';
-import { colors, radius } from '../../../src/theme/tokens';
+import { colors, radius, fonts } from '../../../src/theme/tokens';
 
 export default function DetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -69,7 +69,7 @@ export default function DetailScreen() {
 
         <Text style={styles.caption}>
           {item.source === 'BILLIM_PARTNER'
-            ? '빌림이 직접 관리하는 자원이에요. 예약은 앱 안에서 바로 처리돼요.'
+            ? '빌림이 직접 관리하는 물품이에요. 예약은 앱 안에서 바로 처리돼요.'
             : `${sourceLabel(item.source)}에서 제공하는 정보예요. 실제 예약 가능 여부는 공식 예약처에서 최종 확인해주세요.`}
         </Text>
       </View>
@@ -98,16 +98,16 @@ const styles = StyleSheet.create({
   pad: { padding: 22 },
   srcLine: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 11, flexWrap: 'wrap' },
   srcTag: { backgroundColor: colors.grayFill, borderRadius: radius.full, paddingHorizontal: 8, paddingVertical: 3 },
-  srcTagText: { fontSize: 10.5, fontWeight: '700', color: colors.ink2 },
-  updated: { fontSize: 11.5, color: colors.ink3 },
-  title: { fontSize: 22, fontWeight: '800', marginBottom: 18, color: colors.ink, lineHeight: 28 },
+  srcTagText: { fontSize: 10.5, fontFamily: fonts.semibold, color: colors.ink2 },
+  updated: { fontSize: 11.5, fontFamily: fonts.regular, color: colors.ink3 },
+  title: { fontSize: 22, fontFamily: fonts.bold, marginBottom: 18, color: colors.ink, lineHeight: 28 },
   facts: { marginBottom: 18 },
   factRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 13 },
-  factLabel: { fontSize: 13, color: colors.ink2, fontWeight: '600' },
-  factValue: { fontSize: 13.5, fontWeight: '800', color: colors.ink, flexShrink: 1, textAlign: 'right' },
+  factLabel: { fontSize: 13, fontFamily: fonts.medium, color: colors.ink2 },
+  factValue: { fontSize: 13.5, fontFamily: fonts.bold, color: colors.ink, flexShrink: 1, textAlign: 'right' },
   ctaPrimary: { height: 54, borderRadius: radius.md, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-  ctaPrimaryText: { color: '#fff', fontSize: 15.5, fontWeight: '800' },
+  ctaPrimaryText: { color: '#fff', fontSize: 15.5, fontFamily: fonts.bold },
   ctaSecondary: { height: 54, borderRadius: radius.md, backgroundColor: colors.grayFill, alignItems: 'center', justifyContent: 'center' },
-  ctaSecondaryText: { color: colors.ink, fontSize: 14.5, fontWeight: '800' },
-  caption: { textAlign: 'center', fontSize: 11.5, color: colors.ink3, marginTop: 13, lineHeight: 17, paddingBottom: 20 },
+  ctaSecondaryText: { color: colors.ink, fontSize: 14.5, fontFamily: fonts.bold },
+  caption: { textAlign: 'center', fontSize: 11.5, fontFamily: fonts.regular, color: colors.ink3, marginTop: 13, lineHeight: 17, paddingBottom: 20 },
 });

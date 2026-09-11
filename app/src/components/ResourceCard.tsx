@@ -1,6 +1,6 @@
 import { View, Text, Image, Pressable, StyleSheet } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
-import { colors, radius } from '../theme/tokens';
+import { colors, radius, fonts } from '../theme/tokens';
 
 export interface ResourceCardItem {
   id: string;
@@ -79,9 +79,9 @@ const styles = StyleSheet.create({
   },
   badgeRow: { flexDirection: 'row', gap: 5, marginBottom: 7 },
   badge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 },
-  badgeText: { fontSize: 10, fontWeight: '700' },
-  name: { fontSize: 14.5, fontWeight: '800', marginBottom: 3, color: colors.ink },
-  org: { fontSize: 11.5, color: colors.ink3, marginBottom: 8 },
-  meta: { fontSize: 11.5, color: colors.ink2, fontWeight: '600' },
+  badgeText: { fontSize: 10, fontFamily: fonts.semibold },
+  name: { fontSize: 14.5, fontFamily: fonts.bold, marginBottom: 3, color: colors.ink },
+  org: { fontSize: 11.5, fontFamily: fonts.regular, color: colors.ink3, marginBottom: 8 },
+  meta: { fontSize: 11.5, fontFamily: fonts.semibold, color: colors.ink2 },
   bookmarkBtn: { position: 'absolute', top: 12, right: 12 },
 });

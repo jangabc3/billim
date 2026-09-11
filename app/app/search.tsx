@@ -4,7 +4,7 @@ import { useRouter, Stack } from 'expo-router';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { resourceApi } from '../src/api/client';
 import type { PublicResource } from '../src/types/resource';
-import { colors, radius } from '../src/theme/tokens';
+import { colors, radius, fonts } from '../src/theme/tokens';
 
 type LoadState = 'loading' | 'success' | 'empty' | 'error';
 
@@ -33,7 +33,7 @@ export default function SearchScreen() {
         <StateView title="연결이 원활하지 않아요" desc="네트워크 상태를 확인하고 다시 시도해주세요." actionLabel="다시 시도" onAction={load} />
       )}
       {state === 'empty' && (
-        <StateView title="검색 결과가 없어요" desc="아직 등록된 자원이 없어요. 잠시 후 다시 확인해주세요." actionLabel="새로고침" onAction={load} />
+        <StateView title="검색 결과가 없어요" desc="아직 등록된 물품이 없어요. 잠시 후 다시 확인해주세요." actionLabel="새로고침" onAction={load} />
       )}
       {state === 'success' && (
         <ScrollView contentContainerStyle={{ padding: 20 }}>
@@ -80,14 +80,14 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   row: { flexDirection: 'row', gap: 13, paddingVertical: 15, borderTopWidth: 1, borderTopColor: colors.line },
   thumb: { width: 58, height: 58, borderRadius: 14, backgroundColor: colors.grayFill, alignItems: 'center', justifyContent: 'center' },
-  name: { fontSize: 14.5, fontWeight: '800', marginBottom: 5, color: colors.ink },
-  addr: { fontSize: 11.5, color: colors.ink3, marginBottom: 8 },
+  name: { fontSize: 14.5, fontFamily: fonts.bold, marginBottom: 5, color: colors.ink },
+  addr: { fontSize: 11.5, fontFamily: fonts.regular, color: colors.ink3, marginBottom: 8 },
   feeBadge: { alignSelf: 'flex-start', backgroundColor: colors.brandTint, borderRadius: radius.full, paddingHorizontal: 8, paddingVertical: 4 },
-  feeBadgeText: { fontSize: 10.5, fontWeight: '700', color: colors.brandStrong },
+  feeBadgeText: { fontSize: 10.5, fontFamily: fonts.semibold, color: colors.brandStrong },
   stateView: { flex: 1, alignItems: 'center', paddingTop: 90, paddingHorizontal: 40 },
   stateIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.grayFill, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
-  stateTitle: { fontSize: 15, fontWeight: '800', marginBottom: 8, color: colors.ink },
-  stateDesc: { fontSize: 12.5, color: colors.ink3, textAlign: 'center', lineHeight: 18, marginBottom: 20 },
+  stateTitle: { fontSize: 15, fontFamily: fonts.bold, marginBottom: 8, color: colors.ink },
+  stateDesc: { fontSize: 12.5, fontFamily: fonts.regular, color: colors.ink3, textAlign: 'center', lineHeight: 18, marginBottom: 20 },
   stateBtn: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, borderColor: colors.line },
-  stateBtnText: { fontSize: 13, fontWeight: '800', color: colors.ink },
+  stateBtnText: { fontSize: 13, fontFamily: fonts.bold, color: colors.ink },
 });

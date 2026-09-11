@@ -3,7 +3,7 @@ import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, Keyboa
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/contexts/AuthContext';
 import { ApiError } from '../src/api/client';
-import { colors, radius } from '../src/theme/tokens';
+import { colors, radius, fonts } from '../src/theme/tokens';
 
 export default function LoginScreen() {
     const router = useRouter();
@@ -88,22 +88,22 @@ const styles = StyleSheet.create({
     container: { flex: 1, paddingHorizontal: 24, justifyContent: 'center' },
     header: { alignItems: 'center', marginBottom: 40 },
     logo: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20 },
-    logoNum: { fontSize: 28, fontWeight: '900', color: colors.brand },
-    logoText: { fontSize: 24, fontWeight: '800', color: colors.ink },
-    title: { fontSize: 18, fontWeight: '800', color: colors.ink, marginBottom: 6 },
-    subtitle: { fontSize: 13, color: colors.ink3 },
+    logoNum: { fontSize: 28, fontFamily: fonts.bold, color: colors.brand },
+    logoText: { fontSize: 24, fontFamily: fonts.bold, color: colors.ink },
+    title: { fontSize: 18, fontFamily: fonts.bold, color: colors.ink, marginBottom: 6 },
+    subtitle: { fontSize: 13, fontFamily: fonts.regular, color: colors.ink3 },
     form: { gap: 12 },
     input: {
         height: 52, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line,
-        backgroundColor: colors.surface, paddingHorizontal: 16, fontSize: 14.5, color: colors.ink,
+        backgroundColor: colors.surface, paddingHorizontal: 16, fontSize: 14.5, fontFamily: fonts.regular, color: colors.ink,
     },
-    errorText: { fontSize: 12.5, color: '#E0453C', marginTop: -4 },
+    errorText: { fontSize: 12.5, fontFamily: fonts.regular, color: '#E0453C', marginTop: -4 },
     submitBtn: {
         height: 52, borderRadius: radius.md, backgroundColor: colors.brand,
         alignItems: 'center', justifyContent: 'center', marginTop: 8,
     },
-    submitText: { fontSize: 15, fontWeight: '800', color: '#fff' },
+    submitText: { fontSize: 15, fontFamily: fonts.bold, color: '#fff' },
     linkRow: { alignItems: 'center', marginTop: 8 },
-    linkText: { fontSize: 12.5, color: colors.ink3 },
-    linkStrong: { color: colors.brand, fontWeight: '800' },
+    linkText: { fontSize: 12.5, fontFamily: fonts.regular, color: colors.ink3 },
+    linkStrong: { color: colors.brand, fontFamily: fonts.bold },
 });
