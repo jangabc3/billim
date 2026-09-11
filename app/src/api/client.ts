@@ -11,7 +11,7 @@ import type { PublicResource } from "../types/resource";
  * - 실제 휴대폰(Expo Go): 컴퓨터의 사설 IP 주소 필요 (예: 192.168.0.12)
  *   터미널에서 ipconfig(윈도우) / ifconfig(맥) 로 확인 후 아래 값을 직접 바꿔서 사용.
  */
-const DEV_MACHINE_IP = "192.168.45.172";
+const DEV_MACHINE_IP = "192.168.45.98";
 const BASE_URL = `http://${DEV_MACHINE_IP}:8080/api/v1`;
 
 const TOKEN_KEY = "billim_access_token";
@@ -217,6 +217,11 @@ export const reservationApi = {
     request<ReservationResponse>("/reservations", {
       method: "POST",
       body: { rentalItemId },
+      auth: true,
+    }),
+
+  list: () =>
+    request<ReservationResponse[]>("/reservations", {
       auth: true,
     }),
 
