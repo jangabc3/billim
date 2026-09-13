@@ -24,7 +24,7 @@ const STATUS_LABEL: Record<ReservationResponse['status'], string> = {
 
 const STATUS_COLOR: Record<ReservationResponse['status'], string> = {
   CONFIRMED: colors.brand,
-  RENTED: colors.accentLime,
+  RENTED: colors.newTone,
   RETURNED: colors.ink3,
   CANCELED: '#E0453C',
   EXPIRED: colors.ink3,
@@ -179,7 +179,7 @@ export default function MyScreen() {
 function StatCell({ value, label, highlight }: { value: string; label: string; highlight?: boolean }) {
   return (
     <View style={{ flex: 1, alignItems: 'center' }}>
-      <Text style={[styles.statValue, highlight && { color: colors.accentLime }]}>{value}</Text>
+      <Text style={[styles.statValue, highlight && { color: colors.brand }]}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
   );
@@ -195,11 +195,11 @@ const styles = StyleSheet.create({
   signupBtn: { flex: 1, height: 42, borderRadius: radius.md, borderWidth: 1, borderColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
   signupBtnText: { fontSize: 13, fontFamily: fonts.bold, color: colors.brand },
   greeting: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 4, paddingBottom: 18 },
-  avatar: { width: 46, height: 46, borderRadius: 14, backgroundColor: colors.accentLime, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: 15, fontFamily: fonts.bold },
+  avatar: { width: 46, height: 46, borderRadius: 14, backgroundColor: colors.brandTint, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 15, fontFamily: fonts.bold, color: colors.brand },
   hello: { fontSize: 11.5, fontFamily: fonts.regular, color: colors.ink3, marginBottom: 2 },
   greetTitle: { fontSize: 17, fontFamily: fonts.bold, color: colors.ink },
-  statBar: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 22, borderRadius: radius.md, backgroundColor: '#161C26', paddingVertical: 18 },
+  statBar: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 22, borderRadius: radius.md, backgroundColor: colors.heroDark, paddingVertical: 18 },
   divider: { width: 1, backgroundColor: 'rgba(255,255,255,0.12)' },
   statValue: { fontSize: 15, fontFamily: fonts.bold, color: '#fff' },
   statLabel: { fontSize: 10.5, fontFamily: fonts.regular, color: 'rgba(255,255,255,0.6)', marginTop: 3 },

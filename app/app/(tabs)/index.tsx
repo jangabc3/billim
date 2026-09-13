@@ -70,7 +70,7 @@ export default function HomeScreen() {
           </View>
           <Text style={styles.heroTitle}>
             필요한 건,{'\n'}
-            <Text style={{ color: colors.accentLime }}>가까이서 빌려요.</Text>
+            <Text style={{ color: colors.brand }}>가까이서 빌려요.</Text>
           </Text>
           <Text style={styles.heroDesc}>흩어진 공공 대여 물품을{'\n'}내 동네 기준으로 모아드려요</Text>
         </View>
@@ -139,7 +139,7 @@ export default function HomeScreen() {
 
         <Pressable style={styles.alertBanner} onPress={() => router.push('/my')}>
           <View style={styles.alertIcon}>
-            <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.accentLime} strokeWidth={2}>
+            <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.brand} strokeWidth={2}>
               <Path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
               <Path d="M13.7 21a2 2 0 0 1-3.4 0" />
             </Svg>
@@ -148,7 +148,7 @@ export default function HomeScreen() {
             <Text style={styles.alertTitle}>관심 지역 알림</Text>
             <Text style={styles.alertDesc}>새로 뜬 대여 물품을 놓치지 마세요.</Text>
           </View>
-          <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.accentLime} strokeWidth={2.4}>
+          <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.brand} strokeWidth={2.4}>
             <Path d="M9 6l6 6-6 6" />
           </Svg>
         </Pressable>
@@ -158,11 +158,11 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  hero: { height: 200, marginHorizontal: 20, marginBottom: 18, borderRadius: radius.xl, overflow: 'hidden', backgroundColor: '#1B2430' },
+  hero: { height: 200, marginHorizontal: 20, marginBottom: 18, borderRadius: radius.xl, overflow: 'hidden', backgroundColor: colors.heroDark },
   heroContent: { flex: 1, justifyContent: 'flex-end', padding: 20 },
   tagRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
-  limeDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: colors.accentLime },
-  tagText: { fontSize: 10.5, fontFamily: fonts.bold, letterSpacing: 1, color: colors.accentLime },
+  limeDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: colors.brand },
+  tagText: { fontSize: 10.5, fontFamily: fonts.bold, letterSpacing: 1, color: colors.heroAccent },
   heroTitle: { fontSize: 22, fontFamily: fonts.bold, lineHeight: 28, color: '#fff' },
   heroDesc: { fontSize: 12, fontFamily: fonts.regular, color: 'rgba(255,255,255,0.78)', marginTop: 8, lineHeight: 17 },
   searchBar: {
@@ -181,9 +181,9 @@ const styles = StyleSheet.create({
   sectionMore: { fontSize: 12.5, fontFamily: fonts.semibold, color: colors.ink3 },
   alertBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#161C26', borderRadius: radius.md, padding: 16, marginTop: 4,
+    backgroundColor: colors.brandTint, borderRadius: radius.md, padding: 16, marginTop: 4,
   },
-  alertIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(214,242,78,0.15)', alignItems: 'center', justifyContent: 'center' },
-  alertTitle: { fontSize: 13.5, fontFamily: fonts.bold, color: '#fff', marginBottom: 2 },
-  alertDesc: { fontSize: 11, fontFamily: fonts.regular, color: 'rgba(255,255,255,0.65)' },
+  alertIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.brandTintStrong, alignItems: 'center', justifyContent: 'center' },
+  alertTitle: { fontSize: 13.5, fontFamily: fonts.bold, color: colors.brandStrong, marginBottom: 2 },
+  alertDesc: { fontSize: 11, fontFamily: fonts.regular, color: colors.brand },
 });

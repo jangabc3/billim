@@ -38,10 +38,7 @@ export default function LoginScreen() {
         >
             <View style={styles.container}>
                 <View style={styles.header}>
-                    <View style={styles.logo}>
-                        <Text style={styles.logoNum}>8</Text>
-                        <Text style={styles.logoText}>빌림</Text>
-                    </View>
+                    <Text style={styles.logoText}>빌림</Text>
                     <Text style={styles.title}>다시 만나서 반가워요</Text>
                     <Text style={styles.subtitle}>로그인하고 예약을 이어가세요.</Text>
                 </View>
@@ -87,9 +84,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1, paddingHorizontal: 24, justifyContent: 'center' },
     header: { alignItems: 'center', marginBottom: 40 },
-    logo: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20 },
-    logoNum: { fontSize: 28, fontFamily: fonts.bold, color: colors.brand },
-    logoText: { fontSize: 24, fontFamily: fonts.bold, color: colors.ink },
+    logoText: { fontSize: 24, fontFamily: fonts.bold, color: colors.ink, marginBottom: 20 },
     title: { fontSize: 18, fontFamily: fonts.bold, color: colors.ink, marginBottom: 6 },
     subtitle: { fontSize: 13, fontFamily: fonts.regular, color: colors.ink3 },
     form: { gap: 12 },

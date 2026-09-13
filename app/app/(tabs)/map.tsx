@@ -56,7 +56,7 @@ function MapPin({ left, top, tone, active, children }: {
   return (
     <View style={{
       position: 'absolute', left, top, width: size, height: size, borderRadius: size / 2,
-      backgroundColor: tone === 'brand' ? colors.brand : '#1B2430',
+      backgroundColor: tone === 'brand' ? colors.brand : colors.heroDark,
       alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-45deg' }],
     }}>
       <View style={{ transform: [{ rotate: '45deg' }] }}>
@@ -69,9 +69,9 @@ function MapPin({ left, top, tone, active, children }: {
 }
 
 const styles = StyleSheet.create({
-  mapBox: { marginHorizontal: 20, marginBottom: 22, height: 220, borderRadius: radius.lg, backgroundColor: '#E9EDE6', overflow: 'hidden', borderWidth: 1, borderColor: colors.line },
-  mapBlob: { position: 'absolute', borderRadius: 14, backgroundColor: '#DCE4D8' },
-  meDot: { position: 'absolute', left: 112, top: 138, width: 12, height: 12, borderRadius: 6, backgroundColor: '#2C5FE0' },
+  mapBox: { marginHorizontal: 20, marginBottom: 22, height: 220, borderRadius: radius.lg, backgroundColor: colors.canvas, overflow: 'hidden', borderWidth: 1, borderColor: colors.line },
+  mapBlob: { position: 'absolute', borderRadius: 14, backgroundColor: colors.brandTint },
+  meDot: { position: 'absolute', left: 112, top: 138, width: 12, height: 12, borderRadius: 6, backgroundColor: colors.brand, borderWidth: 2, borderColor: '#fff' },
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 14 },
   sectionEyebrow: { fontSize: 10.5, fontFamily: fonts.bold, letterSpacing: 1, color: colors.brand, marginBottom: 4 },
   sectionTitle: { fontSize: 17, fontFamily: fonts.bold, color: colors.ink },
