@@ -93,7 +93,7 @@ export function toResourceCardItem(
     name: resource.name,
     org: resource.address,
     distance: formatDistance(distanceMeters),
-    fee: resource.fee ?? "확인 필요",
+    fee: resource.fee ?? "정보 없음", // 공유누리 목록 API가 이용료를 안 줘서 실제로 값이 없는 경우
     photo: resource.imageUrl ?? "",
     badges,
   };

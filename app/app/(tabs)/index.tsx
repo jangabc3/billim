@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { View, Text, Image, Pressable, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Path, Line, Circle } from 'react-native-svg';
+import { Ionicons } from '@expo/vector-icons';
+import Svg, { Path, Circle } from 'react-native-svg';
+import { categories } from '../../src/constants/categories';
 import TopBar from '../../src/components/TopBar';
 import ResourceCard from '../../src/components/ResourceCard';
 import type { ResourceCardItem } from '../../src/components/ResourceCard';
@@ -11,18 +13,11 @@ import { resourceApi, ApiError } from '../../src/api/client';
 import { toResourceCardItem } from '../../src/utils/mapResource';
 import { colors, radius, fonts } from '../../src/theme/tokens';
 
-const categories = [
-  { key: 'all', label: '모두', icon: <><Line x1="4" y1="6" x2="20" y2="6" /><Line x1="4" y1="12" x2="14" y2="12" /><Line x1="4" y1="18" x2="10" y2="18" /></> },
-  { key: 'tool', label: '공구', icon: <Path d="M14.7 6.3l3 3-8.4 8.4-4-1 1-4z" /> },
-  { key: 'suit', label: '정장', icon: <Path d="M8 4h8l2 4-2 4v12h-4v-8h-4v8H6V8z" /> },
-  { key: 'medical', label: '의료', icon: <><Circle cx="6" cy="17" r="3" /><Circle cx="18" cy="17" r="3" /><Path d="M6 17V9l6 2 3-5" /></> },
-  { key: 'life', label: '생활', icon: <Path d="M12 3c-4 4-7 7-7 11a7 7 0 0 0 14 0c0-4-3-7-7-11z" /> },
-];
-
 export default function HomeScreen() {
   const router = useRouter();
   const { bookmarked, toggle } = useBookmarks();
 
+  const [activeCategory, setActiveCategory] = useState('ALL');
   const [items, setItems] = useState<ResourceCardItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +29,11 @@ export default function HomeScreen() {
       setLoading(true);
       setError(null);
       try {
-        const page = await resourceApi.search({ receptionStatus: 'OPEN', size: 5 });
+        const page = await resourceApi.search({
+          receptionStatus: 'OPEN',
+          size: 5,
+          category: activeCategory === 'ALL' ? undefined : activeCategory,
+        });
         if (!cancelled) {
           setItems(page.content.map((r) => toResourceCardItem(r)));
         }
@@ -51,7 +50,7 @@ export default function HomeScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [activeCategory]);
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.surface }} contentContainerStyle={{ paddingBottom: 20 }}>
@@ -83,18 +82,16 @@ export default function HomeScreen() {
         <Text style={styles.searchPlaceholder}>무엇이 필요하세요?</Text>
       </Pressable>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catRow} contentContainerStyle={{ gap: 18, paddingHorizontal: 20 }}>
-        {categories.map((c, i) => {
-          const active = i === 0;
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catRow} contentContainerStyle={{ gap: 16, paddingHorizontal: 20 }}>
+        {categories.map((c) => {
+          const active = c.key === activeCategory;
           return (
-            <View key={c.key} style={styles.catItem}>
+            <Pressable key={c.key} style={styles.catItem} onPress={() => setActiveCategory(c.key)}>
               <View style={[styles.catCircle, active && { backgroundColor: colors.brand, borderWidth: 0 }]}>
-                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={active ? '#fff' : colors.ink2} strokeWidth={2}>
-                  {c.icon}
-                </Svg>
+                <Ionicons name={c.icon} size={20} color={active ? '#fff' : colors.ink2} />
               </View>
               <Text style={[styles.catLabel, active && { color: colors.brand, fontFamily: fonts.bold }]}>{c.label}</Text>
-            </View>
+            </Pressable>
           );
         })}
       </ScrollView>
@@ -105,7 +102,7 @@ export default function HomeScreen() {
             <Text style={styles.sectionEyebrow}>AVAILABLE TODAY</Text>
             <Text style={styles.sectionTitle}>오늘 빌릴 수 있어요</Text>
           </View>
-          <Pressable onPress={() => router.push('/map')}>
+          <Pressable onPress={() => router.push('/search')}>
             <Text style={styles.sectionMore}>전체 보기 ›</Text>
           </Pressable>
         </View>
@@ -172,9 +169,9 @@ const styles = StyleSheet.create({
   },
   searchPlaceholder: { fontSize: 14, fontFamily: fonts.regular, color: colors.ink3 },
   catRow: { marginBottom: 26, flexGrow: 0 },
-  catItem: { alignItems: 'center', gap: 7, width: 50 },
+  catItem: { alignItems: 'center', gap: 7, width: 58 },
   catCircle: { width: 50, height: 50, borderRadius: 25, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  catLabel: { fontSize: 11.5, fontFamily: fonts.regular, color: colors.ink3 },
+  catLabel: { fontSize: 11, fontFamily: fonts.regular, color: colors.ink3, textAlign: 'center' },
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 14 },
   sectionEyebrow: { fontSize: 10.5, fontFamily: fonts.bold, letterSpacing: 1, color: colors.brand, marginBottom: 4 },
   sectionTitle: { fontSize: 17, fontFamily: fonts.bold, color: colors.ink },

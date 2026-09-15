@@ -50,7 +50,7 @@ export default function DetailScreen() {
         <Text style={styles.title}>{item.name}</Text>
 
         <View style={styles.facts}>
-          <FactRow label="이용료" value={item.fee ?? '확인 필요'} first />
+          <FactRow label="이용료" value={item.fee ?? '정보 없음'} first />
           <FactRow label="구" value={item.gu} />
           <FactRow label="위치" value={item.address} />
         </View>

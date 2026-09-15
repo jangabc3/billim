@@ -1,57 +1,163 @@
-import { useEffect, useState } from 'react';
-import { View, Text, Pressable, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
+import { useEffect, useState, useCallback } from 'react';
+import { View, Text, Pressable, FlatList, ActivityIndicator, StyleSheet, TextInput } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import Svg, { Path, Circle, Rect } from 'react-native-svg';
-import { resourceApi } from '../src/api/client';
-import type { PublicResource } from '../src/types/resource';
+import { Ionicons } from '@expo/vector-icons';
+import Svg, { Path, Circle } from 'react-native-svg';
+import ResourceCard from '../src/components/ResourceCard';
+import type { ResourceCardItem } from '../src/components/ResourceCard';
+import { resourceApi, ApiError } from '../src/api/client';
+import { toResourceCardItem } from '../src/utils/mapResource';
+import { useBookmarks } from '../src/contexts/BookmarkContext';
+import { categories } from '../src/constants/categories';
 import { colors, radius, fonts } from '../src/theme/tokens';
 
-type LoadState = 'loading' | 'success' | 'empty' | 'error';
+const PAGE_SIZE = 10;
+
+type SortOption = 'latest' | 'freeOnly';
 
 export default function SearchScreen() {
-  const [items, setItems] = useState<PublicResource[]>([]);
-  const [state, setState] = useState<LoadState>('loading');
   const router = useRouter();
+  const { bookmarked, toggle } = useBookmarks();
 
-  const load = () => {
-    setState('loading');
-    resourceApi.list()
-      .then((data) => { setItems(data); setState(data.length === 0 ? 'empty' : 'success'); })
-      .catch(() => setState('error'));
-  };
+  const [keyword, setKeyword] = useState('');
+  const [activeCategory, setActiveCategory] = useState('ALL');
+  const [freeOnly, setFreeOnly] = useState(false);
 
-  useEffect(load, []);
+  const [items, setItems] = useState<ResourceCardItem[]>([]);
+  const [page, setPage] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadPage = useCallback((pageToLoad: number, replace: boolean) => {
+    const setLoadingFlag = replace ? setLoading : setLoadingMore;
+    setLoadingFlag(true);
+    setError(null);
+
+    resourceApi
+      .search({
+        category: activeCategory === 'ALL' ? undefined : activeCategory,
+        keyword: keyword.trim() || undefined,
+        page: pageToLoad,
+        size: PAGE_SIZE,
+      })
+      .then((result) => {
+        const mapped = result.content.map((r) => toResourceCardItem(r));
+        setItems((prev) => (replace ? mapped : [...prev, ...mapped]));
+        setTotalElements(result.totalElements);
+        setPage(pageToLoad);
+      })
+      .catch((e) => setError(e instanceof ApiError ? e.message : '물품을 불러오지 못했어요.'))
+      .finally(() => setLoadingFlag(false));
+  }, [activeCategory, keyword]);
+
+  useEffect(() => {
+    loadPage(0, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCategory]);
+
+  const handleSearchSubmit = () => loadPage(0, true);
+  const handleLoadMore = () => loadPage(page + 1, false);
+
+  const visibleItems = freeOnly ? items.filter((it) => it.fee === '무료') : items;
+  const hasMore = (page + 1) * PAGE_SIZE < totalElements;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
       <Stack.Screen options={{ headerShown: true, title: '검색', headerBackTitle: '홈' }} />
 
-      {state === 'loading' && (
+      <View style={styles.searchBarWrap}>
+        <View style={styles.searchBar}>
+          <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.ink3} strokeWidth={2.2}>
+            <Circle cx="11" cy="11" r="7" /><Path d="M21 21l-4.3-4.3" />
+          </Svg>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="무엇이 필요하세요?"
+            placeholderTextColor={colors.ink3}
+            value={keyword}
+            onChangeText={setKeyword}
+            onSubmitEditing={handleSearchSubmit}
+            returnKeyType="search"
+          />
+          {keyword.length > 0 && (
+            <Pressable onPress={() => { setKeyword(''); loadPage(0, true); }}>
+              <Ionicons name="close-circle" size={16} color={colors.ink3} />
+            </Pressable>
+          )}
+        </View>
+      </View>
+
+      <View style={styles.filterRow}>
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={categories}
+          keyExtractor={(c) => c.key}
+          contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+          renderItem={({ item: c }) => {
+            const active = c.key === activeCategory;
+            return (
+              <Pressable
+                style={[styles.chip, active && styles.chipActive]}
+                onPress={() => setActiveCategory(c.key)}
+              >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>{c.label}</Text>
+              </Pressable>
+            );
+          }}
+        />
+      </View>
+
+      <View style={styles.filterRow2}>
+        <Pressable
+          style={[styles.toggleChip, freeOnly && styles.toggleChipActive]}
+          onPress={() => setFreeOnly((v) => !v)}
+        >
+          <Text style={[styles.toggleChipText, freeOnly && styles.toggleChipTextActive]}>무료만</Text>
+        </Pressable>
+        <Text style={styles.resultCount}>
+          검색 결과 <Text style={{ color: colors.brand, fontFamily: fonts.bold }}>{totalElements}건</Text>
+        </Text>
+      </View>
+
+      {loading && (
         <View style={styles.center}><ActivityIndicator color={colors.brand} /></View>
       )}
-      {state === 'error' && (
-        <StateView title="연결이 원활하지 않아요" desc="네트워크 상태를 확인하고 다시 시도해주세요." actionLabel="다시 시도" onAction={load} />
+
+      {!loading && error && (
+        <StateView title="연결이 원활하지 않아요" desc="네트워크 상태를 확인하고 다시 시도해주세요." actionLabel="다시 시도" onAction={() => loadPage(0, true)} />
       )}
-      {state === 'empty' && (
-        <StateView title="검색 결과가 없어요" desc="아직 등록된 물품이 없어요. 잠시 후 다시 확인해주세요." actionLabel="새로고침" onAction={load} />
+
+      {!loading && !error && visibleItems.length === 0 && (
+        <StateView title="검색 결과가 없어요" desc="다른 검색어나 카테고리로 시도해보세요." actionLabel="필터 초기화" onAction={() => { setKeyword(''); setActiveCategory('ALL'); setFreeOnly(false); }} />
       )}
-      {state === 'success' && (
-        <ScrollView contentContainerStyle={{ padding: 20 }}>
-          {items.map((item) => (
-            <Pressable key={item.id} onPress={() => router.push(`/resources/${item.id}`)} style={styles.row}>
-              <View style={styles.thumb}>
-                <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={colors.brand} strokeWidth={1.6}>
-                  <Rect x="4" y="4" width="16" height="16" rx="2" />
-                </Svg>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.name} numberOfLines={2}>{item.name}</Text>
-                <Text style={styles.addr} numberOfLines={1}>{item.address}</Text>
-                <View style={styles.feeBadge}><Text style={styles.feeBadgeText}>{item.fee ?? '확인 필요'}</Text></View>
-              </View>
-            </Pressable>
-          ))}
-        </ScrollView>
+
+      {!loading && !error && visibleItems.length > 0 && (
+        <FlatList
+          data={visibleItems}
+          keyExtractor={(it) => it.id}
+          contentContainerStyle={{ padding: 20, paddingTop: 4 }}
+          renderItem={({ item }) => (
+            <ResourceCard
+              item={{ ...item, bookmarked: bookmarked.has(item.id) }}
+              onPress={() => router.push(`/resources/${item.id}`)}
+              onToggleBookmark={() => toggle(item.id)}
+            />
+          )}
+          ListFooterComponent={
+            hasMore ? (
+              <Pressable style={styles.loadMoreBtn} onPress={handleLoadMore} disabled={loadingMore}>
+                {loadingMore ? (
+                  <ActivityIndicator color={colors.brand} size="small" />
+                ) : (
+                  <Text style={styles.loadMoreText}>물품 더 보기</Text>
+                )}
+              </Pressable>
+            ) : null
+          }
+        />
       )}
     </View>
   );
@@ -78,12 +184,25 @@ function StateView({ title, desc, actionLabel, onAction }: {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  row: { flexDirection: 'row', gap: 13, paddingVertical: 15, borderTopWidth: 1, borderTopColor: colors.line },
-  thumb: { width: 58, height: 58, borderRadius: 14, backgroundColor: colors.grayFill, alignItems: 'center', justifyContent: 'center' },
-  name: { fontSize: 14.5, fontFamily: fonts.bold, marginBottom: 5, color: colors.ink },
-  addr: { fontSize: 11.5, fontFamily: fonts.regular, color: colors.ink3, marginBottom: 8 },
-  feeBadge: { alignSelf: 'flex-start', backgroundColor: colors.brandTint, borderRadius: radius.full, paddingHorizontal: 8, paddingVertical: 4 },
-  feeBadgeText: { fontSize: 10.5, fontFamily: fonts.semibold, color: colors.brandStrong },
+  searchBarWrap: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10 },
+  searchBar: {
+    height: 46, borderRadius: radius.lg, borderWidth: 1.5, borderColor: colors.brand,
+    backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14,
+  },
+  searchInput: { flex: 1, fontSize: 13, fontFamily: fonts.regular, color: colors.ink, padding: 0 },
+  filterRow: { paddingBottom: 10 },
+  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.full, borderWidth: 1, borderColor: colors.line },
+  chipActive: { backgroundColor: colors.brand, borderWidth: 0 },
+  chipText: { fontSize: 12.5, fontFamily: fonts.regular, color: colors.ink2 },
+  chipTextActive: { color: '#fff', fontFamily: fonts.semibold },
+  filterRow2: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 10 },
+  toggleChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.full, borderWidth: 1, borderColor: colors.line },
+  toggleChipActive: { backgroundColor: colors.brand, borderWidth: 0 },
+  toggleChipText: { fontSize: 12, fontFamily: fonts.regular, color: colors.ink2 },
+  toggleChipTextActive: { color: '#fff', fontFamily: fonts.semibold },
+  resultCount: { fontSize: 12, fontFamily: fonts.regular, color: colors.ink3 },
+  loadMoreBtn: { height: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
+  loadMoreText: { fontSize: 13, fontFamily: fonts.semibold, color: colors.ink2 },
   stateView: { flex: 1, alignItems: 'center', paddingTop: 90, paddingHorizontal: 40 },
   stateIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.grayFill, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
   stateTitle: { fontSize: 15, fontFamily: fonts.bold, marginBottom: 8, color: colors.ink },
