@@ -6,11 +6,16 @@ import com.billim.domain.resource.ReceptionStatus;
 import com.billim.domain.resource.ResourceSource;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.net.http.HttpClient;
+import java.time.Duration;
+
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -22,7 +27,8 @@ import java.util.stream.Collectors;
  * 패키지명은 gongyunuri로 통일했지만, 저장되는 ResourceSource enum 값은 SHARENURI 그대로 둔다
  * (seoul 패키지의 enum 값이 SEOUL_RESERVATION인 것과 같은 방식).
  *
- * [중요] 이 목록 API는 카테고리·이용료·재고 여부를 안 준다. 상세 API 연동은 다음 단계.
+ * [중요] 목록 API는 카테고리·이용료·재고 여부를 안 준다. 이용료(freeYn)와 세부분류(rsrcClsNm)는
+ * 별도 상세 API(rsrc/detail)를 rsrcNoList로 배치 조회해서 보완한다 — fetchDetailBatch() 참고.
  * [중요] 전국 데이터이고 지역 필터 파라미터가 없어서, 페이지네이션으로 전체를 다 받은 뒤
  * addr에 "서울"이 포함된 것만 우리 쪽에서 걸러낸다.
  * [중요] 일부 자원(예: 관공서명만 있고 도로명주소가 없는 경우)은 "구"를 정규식으로 못 뽑아낼 수 있다.
@@ -32,7 +38,22 @@ import java.util.stream.Collectors;
 public class GongyunuriAdapter {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final RestClient restClient = RestClient.create();
+    // 공유누리 서버가 응답을 안 줄 때 무한 대기하지 않도록 연결/읽기 타임아웃을 건다.
+    private final RestClient restClient = RestClient.builder()
+            .requestFactory(readTimeoutRequestFactory())
+            .build();
+
+    private static JdkClientHttpRequestFactory readTimeoutRequestFactory() {
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(
+                HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build());
+        factory.setReadTimeout(Duration.ofSeconds(15));
+        return factory;
+    }
+
+    // 상세 API 한 번에 보낼 최대 rsrcNo 개수. 공식 문서에 상한이 명시돼 있지 않아 목록 API의
+    // numOfRows 상한(100)과 맞춰 보수적으로 잡는다 — 너무 크게 보내다 서버가 거부하면 배치를 줄인다.
+
+    private static final int DETAIL_BATCH_SIZE = 20; // 실측 결과 서로 다른 rsrcNo 다수를 보내면 20 근처에서 400이 남 — 보수적으로 낮춤
 
     private static final Map<String, Category> CATEGORY_CODE_MAP = Map.of(
             "010000", Category.FACILITY,
@@ -52,8 +73,7 @@ public class GongyunuriAdapter {
     public List<PublicResource> fetchAllSeoulResources(String rsrcClsCd, String apiKey) {
         List<PublicResource> result = new ArrayList<>();
         int pageNo = 1;
-        int numOfRows = 1000;
-
+        int numOfRows = 10; // 원인 파악을 위해 임시로 확실히 되는 값으로 낮춤(이후 다시 올릴 예정)
         while (true) {
             GongyunuriListResponse page = fetchPage(rsrcClsCd, apiKey, pageNo, numOfRows);
 
@@ -72,6 +92,42 @@ public class GongyunuriAdapter {
         }
 
         return result;
+    }
+
+    /**
+     * rsrcNo 목록을 상세 API(rsrc/detail)로 배치 조회해서 {rsrcNo: DetailInfo} 맵으로 반환한다.
+     * DETAIL_BATCH_SIZE 단위로 쪼개서 여러 번 호출한다 — 목록이 아무리 커도 한 번에 다 안 보낸다.
+     * 상세 API 하나가 실패해도 전체 동기화가 죽지 않도록, 배치 단위 예외는 호출부에서 잡는다.
+     */
+    public Map<String, DetailInfo> fetchDetailBatch(List<String> rsrcNos, String apiKey) {
+        Map<String, DetailInfo> result = new HashMap<>();
+
+        for (int i = 0; i < rsrcNos.size(); i += DETAIL_BATCH_SIZE) {
+            List<String> chunk = rsrcNos.subList(i, Math.min(i + DETAIL_BATCH_SIZE, rsrcNos.size()));
+            GongyunuriDetailResponse response = fetchDetailChunk(chunk, apiKey);
+            if (response.getData() != null) {
+                for (GongyunuriDetailResponse.Row row : response.getData()) {
+                    result.put(row.getRsrcNo(), new DetailInfo(
+                            toFeeLabel(row.getFreeYn()),
+                            row.getRsrcClsNm()));
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /** "Y"/"N" → 화면에 보여줄 "무료"/"유료" 라벨. 값이 없으면 null(= 표시 안 함). */
+    private String toFeeLabel(String freeYn) {
+        if ("Y".equalsIgnoreCase(freeYn))
+            return "무료";
+        if ("N".equalsIgnoreCase(freeYn))
+            return "유료";
+        return null;
+    }
+
+    /** 상세 API 조회 결과 중 우리가 실제로 쓰는 두 값만 담는 값 객체. */
+    public record DetailInfo(String fee, String subCategory) {
     }
 
     /** 이미 응답 JSON을 갖고 있을 때(테스트 등) 바로 파싱만 하고 싶을 때 사용. */
@@ -97,8 +153,8 @@ public class GongyunuriAdapter {
         String url = "https://www.eshare.go.kr/eshare-openapi/rsrc/list/" + rsrcClsCd + "/" + apiKey;
         String requestBody = String.format("{\"pageNo\":%d,\"numOfRows\":%d}", pageNo, numOfRows);
 
-        String json = restClient.method(HttpMethod.GET)
-                .uri(url)
+        String json = restClient.post()
+                .uri(java.net.URI.create(url))
                 .header("Content-Type", "application/json")
                 .body(requestBody)
                 .retrieve()
@@ -108,6 +164,54 @@ public class GongyunuriAdapter {
             return objectMapper.readValue(json, GongyunuriListResponse.class);
         } catch (Exception e) {
             throw new IllegalStateException("공유누리 응답 파싱 실패: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 상세 API에 rsrcNoList(최대 DETAIL_BATCH_SIZE개)를 POST로 보내 조회한다.
+     * curl로는 성공하는데 RestClient로는 401이 나는 문제가 있어, curl과 최대한 동일한 방식(순수
+     * java.net.http.HttpClient)으로 직접 호출한다.
+     */
+    private GongyunuriDetailResponse fetchDetailChunk(List<String> rsrcNos, String apiKey) {
+        String url = "https://www.eshare.go.kr/eshare-openapi/rsrc/detail/" + apiKey;
+
+        Map<String, Object> body = Map.of("rsrcNoList", rsrcNos);
+        String requestBody;
+        try {
+            requestBody = objectMapper.writeValueAsString(body);
+        } catch (Exception e) {
+            throw new IllegalStateException("공유누리 상세 요청 바디 생성 실패: " + e.getMessage(), e);
+        }
+
+        String json;
+        try {
+            java.net.http.HttpClient client = java.net.http.HttpClient.newBuilder()
+                    .connectTimeout(java.time.Duration.ofSeconds(5))
+                    .build();
+            java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
+                    .uri(java.net.URI.create(url))
+                    .header("Content-Type", "application/json")
+                    .timeout(java.time.Duration.ofSeconds(15))
+                    .POST(java.net.http.HttpRequest.BodyPublishers.ofString(requestBody))
+                    .build();
+            java.net.http.HttpResponse<String> response = client.send(request,
+                    java.net.http.HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() != 200) {
+                throw new IllegalStateException(
+                        "공유누리 상세 API 실패 (status=" + response.statusCode() + "): " + response.body());
+            }
+            json = response.body();
+        } catch (IllegalStateException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalStateException("공유누리 상세 API 호출 실패: " + e.getMessage(), e);
+        }
+
+        try {
+            return objectMapper.readValue(json, GongyunuriDetailResponse.class);
+        } catch (Exception e) {
+            throw new IllegalStateException("공유누리 상세 응답 파싱 실패: " + e.getMessage(), e);
         }
     }
 

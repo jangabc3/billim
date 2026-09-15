@@ -40,17 +40,19 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable()) // REST API + JWT 조합에서는 세션 기반 CSRF 보호가 불필요
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/v1/auth/**").permitAll()
-                .requestMatchers("/api/v1/resources/**").permitAll()
-                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                .requestMatchers("/api/v1/admin/**").hasRole("SYSTEM_ADMIN")
-                .anyRequest().authenticated()
-            )
-            .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, userDetailsService),
-                    UsernamePasswordAuthenticationFilter.class);
+                .csrf(csrf -> csrf.disable()) // REST API + JWT 조합에서는 세션 기반 CSRF 보호가 불필요
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/error").permitAll() // 내부 에러 포워딩이 인증 컨텍스트 없이도 403 대신 실제 에러를 보여주게 함
+                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("/api/v1/resources/**").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/api/v1/admin/sync/seoul").hasAuthority("ROLE_SYSTEM_ADMIN")
+                        .requestMatchers("/api/v1/admin/sync/gongyunuri").hasAuthority("ROLE_SYSTEM_ADMIN")
+                        .requestMatchers("/api/v1/admin/**").hasAuthority("ROLE_SYSTEM_ADMIN")
+                        .anyRequest().authenticated())
+                .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, userDetailsService),
+                        UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 

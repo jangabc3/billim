@@ -4,6 +4,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.client.RestClientException;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -27,6 +28,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException e) {
         return buildResponse(HttpStatus.CONFLICT, e.getMessage());
+    }
+
+    /** 외부 공공 API(공유누리·서울시) 호출 실패 → 502 Bad Gateway (우리 서버가 아니라 외부 API 쪽 문제임을 명시) */
+    @ExceptionHandler(RestClientException.class)
+    public ResponseEntity<Map<String, Object>> handleRestClientException(RestClientException e) {
+        return buildResponse(HttpStatus.BAD_GATEWAY, "외부 API 호출 실패: " + e.getMessage());
     }
 
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {

@@ -66,6 +66,9 @@ public class PublicResource {
     @Column(length = 30)
     private String fee; // "무료" / "3,000원" / null(확인 필요)
 
+    @Column(length = 50)
+    private String subCategory; // 공유누리 상세 API의 rsrcClsNm (예: "캠핑·레저") — 세부 필터용
+
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
     private ReceptionStatus receptionStatus; // OPEN, CLOSING_SOON, CLOSED, UNKNOWN
@@ -159,6 +162,15 @@ public class PublicResource {
         this.lastSyncedAt = LocalDateTime.now();
     }
 
+    /**
+     * 공유누리 상세 API(rsrcNoList 배치 조회) 결과를 목록 수집 이후 덧씌운다.
+     * 목록 API는 이용료·세부분류를 안 주기 때문에 2단계로 나눠 처리한다.
+     */
+    public void applyGongyunuriDetail(String fee, String subCategory) {
+        this.fee = fee;
+        this.subCategory = subCategory;
+    }
+
     @PrePersist
     void onCreate() {
         this.createdAt = LocalDateTime.now();
@@ -206,6 +218,10 @@ public class PublicResource {
 
     public String getFee() {
         return fee;
+    }
+
+    public String getSubCategory() {
+        return subCategory;
     }
 
     public ReceptionStatus getReceptionStatus() {

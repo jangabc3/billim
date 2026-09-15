@@ -38,7 +38,11 @@ public class PublicResourceRepositoryImpl implements PublicResourceRepositoryCus
         if (gu != null && !gu.isBlank()) {
             condition.and(r.gu.eq(gu));
         }
-        if (receptionStatus != null) {
+        if (receptionStatus == ReceptionStatus.OPEN) {
+            // "이용 가능한 것"을 요청한 것으로 해석 — 확실히 마감(CLOSED)된 것만 제외한다.
+            // 공유누리(UNKNOWN)와 마감임박(CLOSING_SOON)은 여전히 노출한다.
+            condition.and(r.receptionStatus.ne(ReceptionStatus.CLOSED));
+        } else if (receptionStatus != null) {
             condition.and(r.receptionStatus.eq(receptionStatus));
         }
         if (keyword != null && !keyword.isBlank()) {

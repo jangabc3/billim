@@ -156,9 +156,17 @@ public class SeoulReservationAdapter {
         return start + " ~ " + end;
     }
 
-    // CDATA로 감싸인 값에 종종 앞뒤 공백이 섞여 있어 정리
+    // CDATA로 감싸인 값에 종종 앞뒤 공백과, 이스케이프되지 않은 HTML 엔티티가 섞여 있어 정리
     private String cleanName(String raw) {
-        return raw == null ? "" : raw.trim();
+        if (raw == null)
+            return "";
+        return raw.trim()
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&quot;", "\"")
+                .replace("&#39;", "'")
+                .replace("&apos;", "'")
+                .replace("&amp;", "&"); // &amp;는 마지막에 — 먼저 하면 다른 엔티티가 이중 치환될 수 있음
     }
 
     private BigDecimal parseCoordinate(String raw) {
