@@ -5,15 +5,14 @@ import com.billim.domain.resource.PublicResource;
 import com.billim.domain.resource.ReceptionStatus;
 import com.billim.domain.resource.ResourceSource;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
-
-import java.net.http.HttpClient;
-import java.time.Duration;
 
 import java.math.BigDecimal;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -30,30 +29,26 @@ import java.util.stream.Collectors;
  * [중요] 목록 API는 카테고리·이용료·재고 여부를 안 준다. 이용료(freeYn)와 세부분류(rsrcClsNm)는
  * 별도 상세 API(rsrc/detail)를 rsrcNoList로 배치 조회해서 보완한다 — fetchDetailBatch() 참고.
  * [중요] 전국 데이터이고 지역 필터 파라미터가 없어서, 페이지네이션으로 전체를 다 받은 뒤
- * addr에 "서울"이 포함된 것만 우리 쪽에서 걸러낸다.
+ * addr에 "서울"이 포함된 것만 우리 쪽에서 걸러낸다. 종료 조건은 "이번 페이지에서 실제로 받은
+ * raw 건수"로 판단해야 한다 — 서울만 걸러진 건수로 판단하면, 전국 데이터가 많은 카테고리에서
+ * 종료 조건에 영영 도달하지 못해 사실상 무한 루프에 빠진다(실제로 겪은 버그).
  * [중요] 일부 자원(예: 관공서명만 있고 도로명주소가 없는 경우)은 "구"를 정규식으로 못 뽑아낼 수 있다.
  * gu 컬럼이 DB에서 필수값이라, 못 찾으면 "확인 필요"로 채워서 억지로 값을 지어내지 않는다.
+ * [중요] RestClient의 read timeout이 실제로는 적용되지 않는 문제를 겪어, 순수
+ * java.net.http.HttpClient로 직접 타임아웃을 제어한다(sendPost 참고).
  */
 @Component
 public class GongyunuriAdapter {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    // 공유누리 서버가 응답을 안 줄 때 무한 대기하지 않도록 연결/읽기 타임아웃을 건다.
-    private final RestClient restClient = RestClient.builder()
-            .requestFactory(readTimeoutRequestFactory())
-            .build();
 
-    private static JdkClientHttpRequestFactory readTimeoutRequestFactory() {
-        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(
-                HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build());
-        factory.setReadTimeout(Duration.ofSeconds(15));
-        return factory;
-    }
+    // 전국 데이터를 페이지네이션으로 돌며 서울만 필터링하다 보니, 종료 조건 판단을 잘못하면
+    // 무한정 페이지를 넘길 수 있다. 안전장치로 최대 페이지 수를 못박는다.
+    private static final int MAX_PAGES = 50;
 
-    // 상세 API 한 번에 보낼 최대 rsrcNo 개수. 공식 문서에 상한이 명시돼 있지 않아 목록 API의
-    // numOfRows 상한(100)과 맞춰 보수적으로 잡는다 — 너무 크게 보내다 서버가 거부하면 배치를 줄인다.
-
-    private static final int DETAIL_BATCH_SIZE = 20; // 실측 결과 서로 다른 rsrcNo 다수를 보내면 20 근처에서 400이 남 — 보수적으로 낮춤
+    // 상세 API 한 번에 보낼 최대 rsrcNo 개수. 실측 결과 서로 다른 rsrcNo 다수를 보내면
+    // 20~30개 근처에서 400이 나서 보수적으로 낮춰 잡는다.
+    private static final int DETAIL_BATCH_SIZE = 20;
 
     private static final Map<String, Category> CATEGORY_CODE_MAP = Map.of(
             "010000", Category.FACILITY,
@@ -73,8 +68,9 @@ public class GongyunuriAdapter {
     public List<PublicResource> fetchAllSeoulResources(String rsrcClsCd, String apiKey) {
         List<PublicResource> result = new ArrayList<>();
         int pageNo = 1;
-        int numOfRows = 10; // 원인 파악을 위해 임시로 확실히 되는 값으로 낮춤(이후 다시 올릴 예정)
-        while (true) {
+        int numOfRows = 100; // 공식 API 스펙 상한(LimitCnt: 1~100)
+
+        while (pageNo <= MAX_PAGES) {
             GongyunuriListResponse page = fetchPage(rsrcClsCd, apiKey, pageNo, numOfRows);
 
             if (page.getData() != null) {
@@ -84,8 +80,9 @@ public class GongyunuriAdapter {
                         .forEach(result::add);
             }
 
-            // 이번 페이지 결과가 numOfRows보다 적게 왔으면 마지막 페이지라는 뜻
-            if (page.getData() == null || page.getData().size() < numOfRows) {
+            // 이번 페이지에서 실제로 받은 raw 건수(서울 필터링 전)가 numOfRows보다 적으면 마지막 페이지.
+            int rawCount = page.getData() == null ? 0 : page.getData().size();
+            if (rawCount < numOfRows) {
                 break;
             }
             pageNo++;
@@ -105,6 +102,7 @@ public class GongyunuriAdapter {
         for (int i = 0; i < rsrcNos.size(); i += DETAIL_BATCH_SIZE) {
             List<String> chunk = rsrcNos.subList(i, Math.min(i + DETAIL_BATCH_SIZE, rsrcNos.size()));
             GongyunuriDetailResponse response = fetchDetailChunk(chunk, apiKey);
+
             if (response.getData() != null) {
                 for (GongyunuriDetailResponse.Row row : response.getData()) {
                     result.put(row.getRsrcNo(), new DetailInfo(
@@ -153,12 +151,7 @@ public class GongyunuriAdapter {
         String url = "https://www.eshare.go.kr/eshare-openapi/rsrc/list/" + rsrcClsCd + "/" + apiKey;
         String requestBody = String.format("{\"pageNo\":%d,\"numOfRows\":%d}", pageNo, numOfRows);
 
-        String json = restClient.post()
-                .uri(java.net.URI.create(url))
-                .header("Content-Type", "application/json")
-                .body(requestBody)
-                .retrieve()
-                .body(String.class);
+        String json = sendPost(url, requestBody, "공유누리 목록 API");
 
         try {
             return objectMapper.readValue(json, GongyunuriListResponse.class);
@@ -167,11 +160,7 @@ public class GongyunuriAdapter {
         }
     }
 
-    /**
-     * 상세 API에 rsrcNoList(최대 DETAIL_BATCH_SIZE개)를 POST로 보내 조회한다.
-     * curl로는 성공하는데 RestClient로는 401이 나는 문제가 있어, curl과 최대한 동일한 방식(순수
-     * java.net.http.HttpClient)으로 직접 호출한다.
-     */
+    /** 상세 API에 rsrcNoList(최대 DETAIL_BATCH_SIZE개)를 POST로 보내 조회한다. */
     private GongyunuriDetailResponse fetchDetailChunk(List<String> rsrcNos, String apiKey) {
         String url = "https://www.eshare.go.kr/eshare-openapi/rsrc/detail/" + apiKey;
 
@@ -183,35 +172,40 @@ public class GongyunuriAdapter {
             throw new IllegalStateException("공유누리 상세 요청 바디 생성 실패: " + e.getMessage(), e);
         }
 
-        String json;
-        try {
-            java.net.http.HttpClient client = java.net.http.HttpClient.newBuilder()
-                    .connectTimeout(java.time.Duration.ofSeconds(5))
-                    .build();
-            java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
-                    .uri(java.net.URI.create(url))
-                    .header("Content-Type", "application/json")
-                    .timeout(java.time.Duration.ofSeconds(15))
-                    .POST(java.net.http.HttpRequest.BodyPublishers.ofString(requestBody))
-                    .build();
-            java.net.http.HttpResponse<String> response = client.send(request,
-                    java.net.http.HttpResponse.BodyHandlers.ofString());
-
-            if (response.statusCode() != 200) {
-                throw new IllegalStateException(
-                        "공유누리 상세 API 실패 (status=" + response.statusCode() + "): " + response.body());
-            }
-            json = response.body();
-        } catch (IllegalStateException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new IllegalStateException("공유누리 상세 API 호출 실패: " + e.getMessage(), e);
-        }
+        String json = sendPost(url, requestBody, "공유누리 상세 API");
 
         try {
             return objectMapper.readValue(json, GongyunuriDetailResponse.class);
         } catch (Exception e) {
             throw new IllegalStateException("공유누리 상세 응답 파싱 실패: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 순수 java.net.http.HttpClient로 POST 요청을 보낸다. 연결 5초, 응답 대기 15초로 확실히 타임아웃을 건다.
+     */
+    private String sendPost(String url, String requestBody, String label) {
+        try {
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .build();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .header("Content-Type", "application/json")
+                    .timeout(Duration.ofSeconds(15))
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                    .build();
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() != 200) {
+                throw new IllegalStateException(
+                        label + " 실패 (status=" + response.statusCode() + "): " + response.body());
+            }
+            return response.body();
+        } catch (IllegalStateException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalStateException(label + " 호출 실패: " + e.getMessage(), e);
         }
     }
 
