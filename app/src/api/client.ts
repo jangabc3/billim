@@ -110,6 +110,7 @@ export interface SearchParams {
   gu?: string;
   receptionStatus?: string;
   keyword?: string;
+  freeOnly?: boolean;
   page?: number;
   size?: number;
   [key: string]: unknown;

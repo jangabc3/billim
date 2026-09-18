@@ -13,8 +13,6 @@ import { colors, radius, fonts } from '../src/theme/tokens';
 
 const PAGE_SIZE = 10;
 
-type SortOption = 'latest' | 'freeOnly';
-
 export default function SearchScreen() {
   const router = useRouter();
   const { bookmarked, toggle } = useBookmarks();
@@ -39,6 +37,7 @@ export default function SearchScreen() {
       .search({
         category: activeCategory === 'ALL' ? undefined : activeCategory,
         keyword: keyword.trim() || undefined,
+        freeOnly: freeOnly ? true : undefined,
         page: pageToLoad,
         size: PAGE_SIZE,
       })
@@ -50,17 +49,16 @@ export default function SearchScreen() {
       })
       .catch((e) => setError(e instanceof ApiError ? e.message : '물품을 불러오지 못했어요.'))
       .finally(() => setLoadingFlag(false));
-  }, [activeCategory, keyword]);
+  }, [activeCategory, keyword, freeOnly]);
 
   useEffect(() => {
     loadPage(0, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCategory]);
+  }, [activeCategory, freeOnly]);
 
   const handleSearchSubmit = () => loadPage(0, true);
   const handleLoadMore = () => loadPage(page + 1, false);
 
-  const visibleItems = freeOnly ? items.filter((it) => it.fee === '무료') : items;
   const hasMore = (page + 1) * PAGE_SIZE < totalElements;
 
   return (
@@ -130,13 +128,13 @@ export default function SearchScreen() {
         <StateView title="연결이 원활하지 않아요" desc="네트워크 상태를 확인하고 다시 시도해주세요." actionLabel="다시 시도" onAction={() => loadPage(0, true)} />
       )}
 
-      {!loading && !error && visibleItems.length === 0 && (
+      {!loading && !error && items.length === 0 && (
         <StateView title="검색 결과가 없어요" desc="다른 검색어나 카테고리로 시도해보세요." actionLabel="필터 초기화" onAction={() => { setKeyword(''); setActiveCategory('ALL'); setFreeOnly(false); }} />
       )}
 
-      {!loading && !error && visibleItems.length > 0 && (
+      {!loading && !error && items.length > 0 && (
         <FlatList
-          data={visibleItems}
+          data={items}
           keyExtractor={(it) => it.id}
           contentContainerStyle={{ padding: 20, paddingTop: 4 }}
           renderItem={({ item }) => (
