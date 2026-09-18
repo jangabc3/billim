@@ -36,6 +36,15 @@ function receptionBadge(
   }
 }
 
+/** fee("무료"/"유료"/null) → 뱃지. "무료"만 눈에 띄게 강조하고, "유료"는 굳이 배지로 안 만든다
+ * (배지가 너무 많아지면 오히려 안 읽힘 — 무료라는 긍정 신호만 강조). */
+function feeBadge(
+  fee: string | null,
+): { label: string; tone: "urgent" | "brand" | "neutral" | "new" } | null {
+  if (fee === "무료") return { label: "무료", tone: "new" };
+  return null;
+}
+
 /**
  * 두 좌표 사이의 거리를 미터 단위로 계산한다 (Haversine 공식).
  * 사용자 현재 위치를 아직 못 구했을 때(origin이 없을 때)는 null을 반환 — 화면에서 "-"로 처리한다.
@@ -78,8 +87,10 @@ export function toResourceCardItem(
   const badges = [];
   const reception = receptionBadge(resource.receptionStatus);
   if (reception) badges.push(reception);
+  const fee = feeBadge(resource.fee);
+  if (fee) badges.push(fee);
   badges.push({
-    label: sourceLabel(resource.source),
+    label: resource.subCategory ?? sourceLabel(resource.source),
     tone: "neutral" as const,
   });
 
