@@ -46,7 +46,7 @@ public class GongyunuriAdapter {
     // 무한정 페이지를 넘길 수 있다. 안전장치로 최대 페이지 수를 못박는다.
     // 캠핑처럼 전국 데이터가 수만 건인 카테고리도 있어(예: 17,300건) — 다 받으려면 페이지가
     // 수백 번 필요해 비효율적이다. 초기 단계에서는 상한을 낮게 잡아 "일부라도 빠르게" 확보한다.
-    private static final int MAX_PAGES = 20;
+    private static final int MAX_PAGES = 40;
 
     // 상세 API 한 번에 보낼 최대 rsrcNo 개수. 실측 결과 서로 다른 rsrcNo 다수를 보내면
     // 20~30개 근처에서 400이 나서 보수적으로 낮춰 잡는다.
@@ -63,16 +63,22 @@ public class GongyunuriAdapter {
     // ===================== 공개 메서드 =====================
 
     /**
-     * 특정 카테고리(rsrcClsCd)의 전국 데이터를 페이지네이션으로 전부 받아온 뒤,
-     * 주소에 "서울"이 포함된 것만 걸러서 PublicResource 리스트로 반환한다.
-     * 하루 1회 배치에서 호출할 메서드 — 사용자 요청 경로에서 직접 호출하지 않는다.
+     * 특정 카테고리(rsrcClsCd)의 전국 데이터를 startPage부터 최대 MAX_PAGES 페이지만큼
+     * 읽어온 뒤, 주소에 "서울"이 포함된 것만 걸러서 PublicResource 리스트로 반환한다.
+     * 전국 데이터가 아주 많은 카테고리(예: 캠핑 17,300건)는 한 번에 다 못 읽으므로,
+     * 호출부(GongyunuriSyncService)가 SyncCursor로 이어읽기를 관리한다.
+     *
+     * @return content: 이번에 읽은 서울 데이터, reachedEnd: 전체 데이터의 끝에 도달했는지
      */
-    public List<PublicResource> fetchAllSeoulResources(String rsrcClsCd, String apiKey) {
+    public FetchResult fetchSeoulResourcesFrom(String rsrcClsCd, String apiKey, int startPage) {
         List<PublicResource> result = new ArrayList<>();
-        int pageNo = 1;
+        int pageNo = startPage;
         int numOfRows = 100; // 공식 API 스펙 상한(LimitCnt: 1~100)
+        int lastPageRead = startPage - 1;
+        boolean reachedEnd = false;
 
-        while (pageNo <= MAX_PAGES) {
+        int pagesReadThisRun = 0;
+        while (pagesReadThisRun < MAX_PAGES) {
             GongyunuriListResponse page = fetchPage(rsrcClsCd, apiKey, pageNo, numOfRows);
 
             if (page.getData() != null) {
@@ -82,15 +88,23 @@ public class GongyunuriAdapter {
                         .forEach(result::add);
             }
 
-            // 이번 페이지에서 실제로 받은 raw 건수(서울 필터링 전)가 numOfRows보다 적으면 마지막 페이지.
+            lastPageRead = pageNo;
+            pagesReadThisRun++;
+
+            // 이번 페이지에서 실제로 받은 raw 건수(서울 필터링 전)가 numOfRows보다 적으면 전체 데이터의 끝.
             int rawCount = page.getData() == null ? 0 : page.getData().size();
             if (rawCount < numOfRows) {
+                reachedEnd = true;
                 break;
             }
             pageNo++;
         }
 
-        return result;
+        return new FetchResult(result, lastPageRead, reachedEnd);
+    }
+
+    /** fetchSeoulResourcesFrom의 결과: 이번에 읽은 데이터, 마지막으로 읽은 페이지, 전체 끝 도달 여부. */
+    public record FetchResult(List<PublicResource> content, int lastPageRead, boolean reachedEnd) {
     }
 
     /**

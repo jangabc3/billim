@@ -45,9 +45,10 @@ public class ResourceController {
             @RequestParam(required = false) String gu,
             @RequestParam(required = false) ReceptionStatus receptionStatus,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Boolean freeOnly,
             Pageable pageable) {
         return publicResourceRepository
-                .search(category, gu, receptionStatus, keyword, pageable)
+                .search(category, gu, receptionStatus, keyword, freeOnly, pageable)
                 .map(this::toResponse);
     }
 

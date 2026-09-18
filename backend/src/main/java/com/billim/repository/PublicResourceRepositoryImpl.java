@@ -27,7 +27,7 @@ public class PublicResourceRepositoryImpl implements PublicResourceRepositoryCus
 
     @Override
     public Page<PublicResource> search(Category category, String gu,
-            ReceptionStatus receptionStatus, String keyword, Pageable pageable) {
+            ReceptionStatus receptionStatus, String keyword, Boolean freeOnly, Pageable pageable) {
 
         QPublicResource r = QPublicResource.publicResource;
 
@@ -47,6 +47,9 @@ public class PublicResourceRepositoryImpl implements PublicResourceRepositoryCus
         }
         if (keyword != null && !keyword.isBlank()) {
             condition.and(r.name.containsIgnoreCase(keyword));
+        }
+        if (Boolean.TRUE.equals(freeOnly)) {
+            condition.and(r.fee.eq("무료"));
         }
 
         List<PublicResource> content = queryFactory
