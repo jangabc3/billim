@@ -46,7 +46,7 @@ public class GongyunuriAdapter {
     // 무한정 페이지를 넘길 수 있다. 안전장치로 최대 페이지 수를 못박는다.
     // 캠핑처럼 전국 데이터가 수만 건인 카테고리도 있어(예: 17,300건) — 다 받으려면 페이지가
     // 수백 번 필요해 비효율적이다. 초기 단계에서는 상한을 낮게 잡아 "일부라도 빠르게" 확보한다.
-    private static final int MAX_PAGES = 10;
+    private static final int MAX_PAGES = 20;
 
     // 상세 API 한 번에 보낼 최대 rsrcNo 개수. 실측 결과 서로 다른 rsrcNo 다수를 보내면
     // 20~30개 근처에서 400이 나서 보수적으로 낮춰 잡는다.

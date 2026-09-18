@@ -12,20 +12,20 @@ import java.time.LocalDateTime;
  * 나중에 엔티티 필드가 바뀌어도 API 계약(응답 형태)이 흔들리지 않게 하기 위함.
  */
 public record PublicResourceResponse(
-        Long id,
-        ResourceSource source,
-        String name,
-        Category category,
-        String address,
-        String gu,
-        BigDecimal latitude,
-        BigDecimal longitude,
-        String fee,
-        ReceptionStatus receptionStatus,
-        LocalDateTime receptionEndAt,
-        ReservationType reservationType,
-        String reservationUrl,
-        String imageUrl,
-        LocalDateTime lastSyncedAt
-) {
+                Long id,
+                ResourceSource source,
+                String name,
+                Category category,
+                String address,
+                String gu,
+                BigDecimal latitude,
+                BigDecimal longitude,
+                String fee,
+                String subCategory,
+                ReceptionStatus receptionStatus,
+                LocalDateTime receptionEndAt,
+                ReservationType reservationType,
+                String reservationUrl,
+                String imageUrl,
+                LocalDateTime lastSyncedAt) {
 }

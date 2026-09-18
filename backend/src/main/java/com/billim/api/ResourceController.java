@@ -89,6 +89,7 @@ public class ResourceController {
                 r.getLatitude(),
                 r.getLongitude(),
                 r.getFee(),
+                r.getSubCategory(),
                 r.getReceptionStatus(),
                 r.getReceptionEndAt(),
                 r.getReservationType(),
