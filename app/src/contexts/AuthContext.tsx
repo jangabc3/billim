@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { authApi, getToken } from '../api/client';
+import { authApi, getToken, clearToken } from '../api/client';
 import type { LoginRequest, SignupRequest } from '../api/client';
 
 interface AuthContextValue {
@@ -19,12 +19,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        async function checkStoredToken() {
+        async function restoreSession() {
             const token = await getToken();
-            setIsLoggedIn(token !== null);
-            setLoading(false);
+            if (!token) {
+                setLoading(false);
+                return;
+            }
+            try {
+                const me = await authApi.me();
+                setIsLoggedIn(true);
+                setUserName(me.name);
+            } catch {
+                // 토큰이 만료됐거나 유효하지 않음 — 로그아웃 상태로 정리
+                await clearToken();
+                setIsLoggedIn(false);
+                setUserName(null);
+            } finally {
+                setLoading(false);
+            }
         }
-        checkStoredToken();
+        restoreSession();
     }, []);
 
     const login = async (data: LoginRequest) => {

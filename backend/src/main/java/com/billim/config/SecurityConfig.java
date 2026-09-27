@@ -18,6 +18,7 @@ import java.util.List;
 
 /**
  * /api/v1/resources, /api/v1/auth는 로그인 없이 접근 가능(permitAll).
+ * 단, /api/v1/auth/me는 예외로 인증이 필요함(authenticated) — 로그인한 사용자의 프로필 조회용.
  * /api/v1/admin/**은 SYSTEM_ADMIN 역할만 접근 가능(hasRole).
  * 그 외(/api/v1/reservations, /api/v1/waitlist 등)는 로그인만 하면 접근 가능(authenticated).
  * JwtAuthenticationFilter가 UsernamePasswordAuthenticationFilter보다 먼저 실행되어
@@ -44,6 +45,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/error").permitAll() // 내부 에러 포워딩이 인증 컨텍스트 없이도 403 대신 실제 에러를 보여주게 함
+                        .requestMatchers("/api/v1/auth/me").authenticated() // permitAll보다 먼저: 더 구체적인 규칙이 우선
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/resources/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()

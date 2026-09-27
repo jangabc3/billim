@@ -1,10 +1,12 @@
 package com.billim.api.auth;
 
+import com.billim.config.security.CustomUserDetails;
 import com.billim.config.security.JwtTokenProvider;
 import com.billim.domain.user.User;
 import com.billim.domain.user.UserRole;
 import com.billim.repository.UserRepository;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -45,5 +47,11 @@ public class AuthController {
 
         String token = jwtTokenProvider.createToken(user.getId(), user.getEmail());
         return ResponseEntity.ok(new LoginResponse(token, user.getId(), user.getName()));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<MeResponse> me(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        User user = userDetails.getUser();
+        return ResponseEntity.ok(new MeResponse(user.getId(), user.getEmail(), user.getName(), user.getRole().name()));
     }
 }

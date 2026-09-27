@@ -179,6 +179,13 @@ export interface LoginResponse {
   name: string;
 }
 
+export interface MeResponse {
+  userId: number;
+  email: string;
+  name: string;
+  role: string;
+}
+
 export const authApi = {
   signup: (data: SignupRequest) =>
     request<void>("/auth/signup", { method: "POST", body: data }),
@@ -191,6 +198,8 @@ export const authApi = {
     await saveToken(result.accessToken);
     return result;
   },
+
+  me: () => request<MeResponse>("/auth/me", { auth: true }),
 
   logout: async (): Promise<void> => {
     await clearToken();
