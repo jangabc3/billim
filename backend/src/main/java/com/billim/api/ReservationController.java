@@ -43,21 +43,44 @@ public class ReservationController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> cancel(@PathVariable Long id) {
+    public ResponseEntity<Void> cancel(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long id) {
+        requireOwnership(userDetails, id);
         reservationService.cancel(id);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/start")
-    public ResponseEntity<Void> startRent(@PathVariable Long id) {
+    public ResponseEntity<Void> startRent(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long id) {
+        requireOwnership(userDetails, id);
         reservationService.startRent(id);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/return")
-    public ResponseEntity<Void> returnItem(@PathVariable Long id) {
+    public ResponseEntity<Void> returnItem(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long id) {
+        requireOwnership(userDetails, id);
         reservationService.returnItem(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 예약 ID가 요청자 본인 것인지 확인한다. 아니거나 존재하지 않으면 404로 처리해
+     * "존재는 하는데 남의 것"이라는 정보조차 노출하지 않는다 — getOne에서 이미 쓰던
+     * 정보 노출 최소화 패턴을 cancel/start/return에도 동일하게 적용한다.
+     */
+    private void requireOwnership(CustomUserDetails userDetails, Long reservationId) {
+        boolean owns = reservationRepository.findById(reservationId)
+                .map(r -> r.getUser().getId().equals(userDetails.getUserId()))
+                .orElse(false);
+        if (!owns) {
+            throw new ReservationNotFoundException(reservationId);
+        }
     }
 
     @GetMapping("/{id}")
