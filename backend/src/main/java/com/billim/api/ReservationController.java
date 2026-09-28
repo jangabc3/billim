@@ -4,6 +4,7 @@ import com.billim.config.security.CustomUserDetails;
 import com.billim.domain.reservation.Reservation;
 import com.billim.repository.ReservationRepository;
 import com.billim.service.reservation.ReservationService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -26,7 +27,7 @@ public class ReservationController {
     @PostMapping
     public ResponseEntity<ReservationResponse> reserve(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @RequestBody ReservationCreateRequest request) {
+            @Valid @RequestBody ReservationCreateRequest request) {
         Reservation reservation = reservationService.reserve(userDetails.getUserId(), request.rentalItemId());
         return ResponseEntity.ok(toResponse(reservation));
     }

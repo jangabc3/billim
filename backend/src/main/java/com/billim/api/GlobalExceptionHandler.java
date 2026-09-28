@@ -2,41 +2,54 @@ package com.billim.api;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.client.RestClientException;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * 컨트롤러에서 던진 예외를 적절한 HTTP 상태코드와 일관된 응답 형태로 변환한다.
- * 이게 없으면 IllegalArgumentException 같은 "입력값이 잘못됐다"는 의미의 예외도
- * 스프링 기본 처리로 500(서버 에러)이 되어버려, 클라이언트가 "내 잘못인지 서버 잘못인지"
- * 구분할 수 없게 된다.
- */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    /** 잘못된 입력값 (존재하지 않는 리소스 참조, 중복 이메일 등) → 400 */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException e) {
         return buildResponse(HttpStatus.BAD_REQUEST, e.getMessage());
     }
 
-    /** 존재하지 않거나 본인 소유가 아닌 리소스 접근 → 404 (정보 노출 최소화) */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException e) {
+        Map<String, String> fieldErrors = new LinkedHashMap<>();
+        for (FieldError fe : e.getBindingResult().getFieldErrors()) {
+            fieldErrors.put(fe.getField(), fe.getDefaultMessage());
+        }
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", LocalDateTime.now().toString());
+        body.put("status", HttpStatus.BAD_REQUEST.value());
+        body.put("error", HttpStatus.BAD_REQUEST.getReasonPhrase());
+        body.put("message", "입력값이 올바르지 않습니다.");
+        body.put("errors", fieldErrors);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
     @ExceptionHandler(ReservationNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleReservationNotFound(ReservationNotFoundException e) {
         return buildResponse(HttpStatus.NOT_FOUND, e.getMessage());
     }
 
-    /** 도메인 규칙 위반 (재고 없음, 잘못된 상태 전이 등) → 409 Conflict */
+    @ExceptionHandler(WaitlistNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleWaitlistNotFound(WaitlistNotFoundException e) {
+        return buildResponse(HttpStatus.NOT_FOUND, e.getMessage());
+    }
+
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException e) {
         return buildResponse(HttpStatus.CONFLICT, e.getMessage());
     }
 
-    /** 외부 공공 API(공유누리·서울시) 호출 실패 → 502 Bad Gateway (우리 서버가 아니라 외부 API 쪽 문제임을 명시) */
     @ExceptionHandler(RestClientException.class)
     public ResponseEntity<Map<String, Object>> handleRestClientException(RestClientException e) {
         return buildResponse(HttpStatus.BAD_GATEWAY, "외부 API 호출 실패: " + e.getMessage());

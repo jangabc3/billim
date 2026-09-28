@@ -1,5 +1,8 @@
 package com.billim.api;
 
+import jakarta.validation.constraints.NotNull;
+
 /** 예약 생성 요청. userId는 이제 요청 바디가 아니라 JWT 인증 정보에서 가져온다. */
-public record ReservationCreateRequest(Long rentalItemId) {
+public record ReservationCreateRequest(
+        @NotNull(message = "물품 ID는 필수입니다.") Long rentalItemId) {
 }
