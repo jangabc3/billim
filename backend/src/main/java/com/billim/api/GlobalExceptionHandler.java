@@ -1,5 +1,7 @@
 package com.billim.api;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -14,6 +16,8 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException e) {
@@ -50,9 +54,21 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.CONFLICT, e.getMessage());
     }
 
+    /**
+     * 외부 공공 API(공유누리·서울시) 호출 실패 → 502 Bad Gateway.
+     * 실제 원인(호출 URL, 응답 본문 등)은 서버 로그에만 남기고, 클라이언트에는
+     * 내부 구조를 유추할 수 있는 정보를 주지 않도록 일반화된 메시지만 반환한다.
+     */
     @ExceptionHandler(RestClientException.class)
     public ResponseEntity<Map<String, Object>> handleRestClientException(RestClientException e) {
-        return buildResponse(HttpStatus.BAD_GATEWAY, "외부 API 호출 실패: " + e.getMessage());
+        log.error("외부 API 호출 실패", e);
+        return buildResponse(HttpStatus.BAD_GATEWAY, "외부 서비스와 통신 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.");
+    }
+
+    /** 로그인 실패 누적으로 계정이 잠긴 상태 → 423 Locked */
+    @ExceptionHandler(com.billim.api.auth.AccountLockedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccountLocked(com.billim.api.auth.AccountLockedException e) {
+        return buildResponse(HttpStatus.LOCKED, e.getMessage());
     }
 
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {

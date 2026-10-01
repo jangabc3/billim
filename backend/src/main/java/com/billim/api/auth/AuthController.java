@@ -1,7 +1,7 @@
 package com.billim.api.auth;
 
-import com.billim.config.security.JwtTokenProvider;
 import com.billim.config.security.CustomUserDetails;
+import com.billim.config.security.JwtTokenProvider;
 import com.billim.domain.user.User;
 import com.billim.domain.user.UserRole;
 import com.billim.repository.UserRepository;
@@ -42,9 +42,18 @@ public class AuthController {
         User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new IllegalArgumentException("이메일 또는 비밀번호가 일치하지 않습니다."));
 
+        if (user.isLocked()) {
+            throw new AccountLockedException();
+        }
+
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+            user.recordLoginFailure();
+            userRepository.save(user);
             throw new IllegalArgumentException("이메일 또는 비밀번호가 일치하지 않습니다.");
         }
+
+        user.recordLoginSuccess();
+        userRepository.save(user);
 
         String token = jwtTokenProvider.createToken(user.getId(), user.getEmail());
         return ResponseEntity.ok(new LoginResponse(token, user.getId(), user.getName()));
