@@ -1,5 +1,8 @@
 package com.billim.api;
 
+import com.billim.api.reservation.ReservationNotFoundException;
+import com.billim.api.reservation.WaitlistNotFoundException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;

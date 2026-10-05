@@ -1,4 +1,4 @@
-package com.billim.api;
+package com.billim.api.resource;
 
 import com.billim.config.security.CustomUserDetails;
 import com.billim.domain.resource.FavoriteResource;

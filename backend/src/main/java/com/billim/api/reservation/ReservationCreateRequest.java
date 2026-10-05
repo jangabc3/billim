@@ -1,4 +1,4 @@
-package com.billim.api;
+package com.billim.api.reservation;
 
 import jakarta.validation.constraints.NotNull;
 

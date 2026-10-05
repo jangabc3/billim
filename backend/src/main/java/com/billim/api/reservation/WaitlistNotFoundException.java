@@ -1,4 +1,4 @@
-package com.billim.api;
+package com.billim.api.reservation;
 
 public class WaitlistNotFoundException extends RuntimeException {
     public WaitlistNotFoundException(Long waitlistId) {

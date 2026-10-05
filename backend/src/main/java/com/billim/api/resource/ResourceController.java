@@ -1,4 +1,4 @@
-package com.billim.api;
+package com.billim.api.resource;
 
 import com.billim.domain.item.Category;
 import com.billim.domain.resource.PublicResource;

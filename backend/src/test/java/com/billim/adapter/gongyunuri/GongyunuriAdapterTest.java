@@ -1,5 +1,6 @@
 package com.billim.adapter.gongyunuri;
 
+import com.billim.adapter.ResilientApiClient;
 import com.billim.domain.resource.PublicResource;
 import org.junit.jupiter.api.Test;
 
@@ -9,7 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class GongyunuriAdapterTest {
 
-  private final GongyunuriAdapter adapter = new GongyunuriAdapter();
+  private final GongyunuriAdapter adapter = new GongyunuriAdapter(new ResilientApiClient());
 
   @Test
   void 서울_주소가_아닌_데이터는_걸러진다() {
