@@ -90,4 +90,11 @@ public class GlobalExceptionHandler {
                 "message", message != null ? message : "요청을 처리할 수 없습니다.");
         return ResponseEntity.status(status).body(body);
     }
+
+    /** 기관 관리 권한이 없는 사용자가 다른 기관의 예약을 처리하려 할 때 → 403 Forbidden */
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(
+            org.springframework.security.access.AccessDeniedException e) {
+        return buildResponse(HttpStatus.FORBIDDEN, e.getMessage());
+    }
 }
