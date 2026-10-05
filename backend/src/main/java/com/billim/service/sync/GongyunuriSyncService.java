@@ -4,6 +4,7 @@ import com.billim.adapter.gongyunuri.GongyunuriAdapter;
 import com.billim.domain.resource.PublicResource;
 import com.billim.domain.resource.ResourceSource;
 import com.billim.domain.sync.SyncCursor;
+import com.billim.domain.sync.SyncLog;
 import com.billim.repository.PublicResourceRepository;
 import com.billim.repository.SyncCursorRepository;
 import org.slf4j.Logger;
@@ -28,6 +29,9 @@ import java.util.stream.Collectors;
  * 목록 API는 이용료·세부분류를 안 줘서, 목록을 다 저장한 뒤 상세 API를 배치로 호출해
  * fee(무료/유료)와 subCategory를 덧씌운다. 상세 API가 실패해도 목록 저장 자체는
  * 이미 끝난 뒤라 전체 동기화가 죽지 않는다 — 로그만 남기고 다음 카테고리로 넘어간다.
+ *
+ * 카테고리 한 번 호출할 때마다 SyncLog를 하나 남긴다 — 스케줄러가 매일 새벽 8개
+ * 카테고리를 돌면서 8건, 관리자가 수동으로 트리거해도 그때마다 1건씩 쌓인다.
  */
 @Service
 public class GongyunuriSyncService {
@@ -37,19 +41,39 @@ public class GongyunuriSyncService {
     private final GongyunuriAdapter adapter;
     private final PublicResourceRepository repository;
     private final SyncCursorRepository cursorRepository;
+    private final SyncLogRecorder syncLogRecorder;
 
     @Value("${gongyunuri.api-key}")
     private String apiKey;
 
     public GongyunuriSyncService(GongyunuriAdapter adapter, PublicResourceRepository repository,
-            SyncCursorRepository cursorRepository) {
+            SyncCursorRepository cursorRepository, SyncLogRecorder syncLogRecorder) {
         this.adapter = adapter;
         this.repository = repository;
         this.cursorRepository = cursorRepository;
+        this.syncLogRecorder = syncLogRecorder;
     }
 
     @Transactional
     public int syncCategory(String rsrcClsCd) {
+        SyncLog syncLog = SyncLog.start(ResourceSource.SHARENURI);
+        try {
+            int[] counts = doSync(rsrcClsCd);
+            int newCount = counts[0];
+            int updatedCount = counts[1];
+            syncLog.succeed(newCount + updatedCount, newCount, updatedCount, 0);
+            return newCount + updatedCount;
+        } catch (RuntimeException e) {
+            log.error("공유누리 카테고리 {} 동기화 실패", rsrcClsCd, e);
+            syncLog.fail(e.getMessage());
+            throw e;
+        } finally {
+            syncLogRecorder.save(syncLog);
+        }
+    }
+
+    /** @return {newCount, updatedCount} */
+    private int[] doSync(String rsrcClsCd) {
         SyncCursor cursor = cursorRepository.findById(rsrcClsCd)
                 .orElseGet(() -> new SyncCursor(rsrcClsCd));
 
@@ -58,15 +82,25 @@ public class GongyunuriSyncService {
 
         List<PublicResource> fetched = result.content();
 
-        int count = 0;
+        int newCount = 0;
+        int updatedCount = 0;
         for (PublicResource fresh : fetched) {
-            repository.findBySourceAndExternalId(ResourceSource.SHARENURI, fresh.getExternalId())
-                    .ifPresentOrElse(
-                            existing -> existing.syncFromExternal(
-                                    fresh.getName(), fresh.getAddress(), fresh.getFee(),
-                                    fresh.getReceptionStatus(), fresh.getImageUrl(), fresh.getExternalUpdatedAt()),
-                            () -> repository.save(fresh));
-            count++;
+            boolean existed = repository.findBySourceAndExternalId(ResourceSource.SHARENURI, fresh.getExternalId())
+                    .map(existing -> {
+                        existing.syncFromExternal(
+                                fresh.getName(), fresh.getAddress(), fresh.getFee(),
+                                fresh.getReceptionStatus(), fresh.getImageUrl(), fresh.getExternalUpdatedAt());
+                        return true;
+                    })
+                    .orElseGet(() -> {
+                        repository.save(fresh);
+                        return false;
+                    });
+            if (existed) {
+                updatedCount++;
+            } else {
+                newCount++;
+            }
         }
 
         enrichWithDetail(fetched);
@@ -79,7 +113,7 @@ public class GongyunuriSyncService {
         }
         cursorRepository.save(cursor);
 
-        return count;
+        return new int[] { newCount, updatedCount };
     }
 
     /**

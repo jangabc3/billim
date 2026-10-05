@@ -3,7 +3,10 @@ package com.billim.service.sync;
 import com.billim.adapter.seoul.SeoulReservationAdapter;
 import com.billim.domain.resource.PublicResource;
 import com.billim.domain.resource.ResourceSource;
+import com.billim.domain.sync.SyncLog;
 import com.billim.repository.PublicResourceRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,29 +22,55 @@ import java.util.List;
 @Service
 public class SeoulSyncService {
 
+    private static final Logger log = LoggerFactory.getLogger(SeoulSyncService.class);
+
     private final SeoulReservationAdapter adapter;
     private final PublicResourceRepository repository;
+    private final SyncLogRecorder syncLogRecorder;
 
-    public SeoulSyncService(SeoulReservationAdapter adapter, PublicResourceRepository repository) {
+    public SeoulSyncService(SeoulReservationAdapter adapter, PublicResourceRepository repository,
+            SyncLogRecorder syncLogRecorder) {
         this.adapter = adapter;
         this.repository = repository;
+        this.syncLogRecorder = syncLogRecorder;
     }
 
     @Transactional
     public int syncAll() {
-        List<PublicResource> fetched = adapter.fetchAll();
-        int count = 0;
+        SyncLog syncLog = SyncLog.start(ResourceSource.SEOUL_RESERVATION);
+        try {
+            List<PublicResource> fetched = adapter.fetchAll();
+            int newCount = 0;
+            int updatedCount = 0;
 
-        for (PublicResource fresh : fetched) {
-            repository.findBySourceAndExternalId(ResourceSource.SEOUL_RESERVATION, fresh.getExternalId())
-                    .ifPresentOrElse(
-                            existing -> existing.syncFromExternal(
+            for (PublicResource fresh : fetched) {
+                boolean existed = repository
+                        .findBySourceAndExternalId(ResourceSource.SEOUL_RESERVATION, fresh.getExternalId())
+                        .map(existing -> {
+                            existing.syncFromExternal(
                                     fresh.getName(), fresh.getAddress(), fresh.getFee(),
-                                    fresh.getReceptionStatus(), fresh.getImageUrl(), fresh.getExternalUpdatedAt()),
-                            () -> repository.save(fresh));
-            count++;
-        }
+                                    fresh.getReceptionStatus(), fresh.getImageUrl(), fresh.getExternalUpdatedAt());
+                            return true;
+                        })
+                        .orElseGet(() -> {
+                            repository.save(fresh);
+                            return false;
+                        });
+                if (existed) {
+                    updatedCount++;
+                } else {
+                    newCount++;
+                }
+            }
 
-        return count;
+            syncLog.succeed(newCount + updatedCount, newCount, updatedCount, 0);
+            return newCount + updatedCount;
+        } catch (RuntimeException e) {
+            log.error("서울시 공공서비스예약 동기화 실패", e);
+            syncLog.fail(e.getMessage());
+            throw e;
+        } finally {
+            syncLogRecorder.save(syncLog);
+        }
     }
 }
