@@ -1,5 +1,6 @@
 package com.billim.adapter.seoul;
 
+import com.billim.adapter.ResilientApiClient;
 import com.billim.domain.item.Category;
 import com.billim.domain.resource.PublicResource;
 import com.billim.domain.resource.ReceptionStatus;
@@ -8,7 +9,6 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -28,6 +28,11 @@ import java.util.stream.Collectors;
  * 요청 URL 패턴:
  * http://openapi.seoul.go.kr:8088/{인증키}/xml/tvYeyakCOllect/{시작}/{종료}/
  * 한 번에 최대 1,000건이라 list_total_count를 보고 필요시 페이지네이션한다.
+ *
+ * [2026-10-05] 기존에는 Spring의 RestClient로 직접 호출했는데, Gongyunuri 쪽에서 RestClient의
+ * read timeout이 실제로는 적용되지 않는 문제를 겪은 적이 있어 동일한 리스크를 안고 있었다.
+ * 외부 API 장애 대응(Retry/CircuitBreaker)을 적용하면서, 순수 HttpClient 기반으로 타임아웃을
+ * 직접 제어하는 ResilientApiClient를 통해 호출하도록 함께 정리했다.
  */
 @Component
 public class SeoulReservationAdapter {
@@ -39,12 +44,13 @@ public class SeoulReservationAdapter {
     private static final DateTimeFormatter SEOUL_DT_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.S");
 
     private final XmlMapper xmlMapper;
-    private final RestClient restClient = RestClient.create();
+    private final ResilientApiClient resilientApiClient;
 
     @Value("${seoul.reservation.api-key}")
     private String apiKey;
 
-    public SeoulReservationAdapter() {
+    public SeoulReservationAdapter(ResilientApiClient resilientApiClient) {
+        this.resilientApiClient = resilientApiClient;
         this.xmlMapper = new XmlMapper();
         // 루트 엘리먼트 이름이 엔드포인트마다 다르므로(GNListPublicReservationSport, tvYeyakCOllect 등) 검증을
         // 끈다.
@@ -105,10 +111,7 @@ public class SeoulReservationAdapter {
         String url = String.format("%s/%s/xml/%s/%d/%d/",
                 BASE_URL, apiKey, SERVICE_NAME, start, end);
 
-        return restClient.get()
-                .uri(url)
-                .retrieve()
-                .body(String.class);
+        return resilientApiClient.getFromSeoul(url, "서울시 공공서비스예약 API");
     }
 
     private SeoulReservationXmlResponse readXml(String xml) {

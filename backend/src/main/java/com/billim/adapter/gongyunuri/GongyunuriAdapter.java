@@ -1,5 +1,6 @@
 package com.billim.adapter.gongyunuri;
 
+import com.billim.adapter.ResilientApiClient;
 import com.billim.domain.item.Category;
 import com.billim.domain.resource.PublicResource;
 import com.billim.domain.resource.ReceptionStatus;
@@ -8,11 +9,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -34,13 +30,21 @@ import java.util.stream.Collectors;
  * 종료 조건에 영영 도달하지 못해 사실상 무한 루프에 빠진다(실제로 겪은 버그).
  * [중요] 일부 자원(예: 관공서명만 있고 도로명주소가 없는 경우)은 "구"를 정규식으로 못 뽑아낼 수 있다.
  * gu 컬럼이 DB에서 필수값이라, 못 찾으면 "확인 필요"로 채워서 억지로 값을 지어내지 않는다.
- * [중요] RestClient의 read timeout이 실제로는 적용되지 않는 문제를 겪어, 순수
- * java.net.http.HttpClient로 직접 타임아웃을 제어한다(sendPost 참고).
+ * [중요] 외부 API(공유누리) 호출은 일시적 장애에 대응하기 위해 Retry/CircuitBreaker를 적용한
+ * ResilientApiClient를 통해서만 수행한다 — sendPost를 이 클래스 안에 두면 self-invocation으로
+ * Spring AOP 프록시를 우회해 애노테이션이 무시되기 때문에 별도 빈으로 분리했다.
+ * RestClient의 read timeout이 실제로는 적용되지 않는 문제를 겪어, ResilientApiClient는 순수
+ * java.net.http.HttpClient로 직접 타임아웃을 제어한다.
  */
 @Component
 public class GongyunuriAdapter {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ResilientApiClient resilientApiClient;
+
+    public GongyunuriAdapter(ResilientApiClient resilientApiClient) {
+        this.resilientApiClient = resilientApiClient;
+    }
 
     // 전국 데이터를 페이지네이션으로 돌며 서울만 필터링하다 보니, 종료 조건 판단을 잘못하면
     // 무한정 페이지를 넘길 수 있다. 안전장치로 최대 페이지 수를 못박는다.
@@ -167,7 +171,7 @@ public class GongyunuriAdapter {
         String url = "https://www.eshare.go.kr/eshare-openapi/rsrc/list/" + rsrcClsCd + "/" + apiKey;
         String requestBody = String.format("{\"pageNo\":%d,\"numOfRows\":%d}", pageNo, numOfRows);
 
-        String json = sendPost(url, requestBody, "공유누리 목록 API");
+        String json = resilientApiClient.postToGongyunuri(url, requestBody, "공유누리 목록 API");
 
         try {
             return objectMapper.readValue(json, GongyunuriListResponse.class);
@@ -188,40 +192,12 @@ public class GongyunuriAdapter {
             throw new IllegalStateException("공유누리 상세 요청 바디 생성 실패: " + e.getMessage(), e);
         }
 
-        String json = sendPost(url, requestBody, "공유누리 상세 API");
+        String json = resilientApiClient.postToGongyunuri(url, requestBody, "공유누리 상세 API");
 
         try {
             return objectMapper.readValue(json, GongyunuriDetailResponse.class);
         } catch (Exception e) {
             throw new IllegalStateException("공유누리 상세 응답 파싱 실패: " + e.getMessage(), e);
-        }
-    }
-
-    /**
-     * 순수 java.net.http.HttpClient로 POST 요청을 보낸다. 연결 5초, 응답 대기 15초로 확실히 타임아웃을 건다.
-     */
-    private String sendPost(String url, String requestBody, String label) {
-        try {
-            HttpClient client = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofSeconds(5))
-                    .build();
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .header("Content-Type", "application/json")
-                    .timeout(Duration.ofSeconds(15))
-                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-                    .build();
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-
-            if (response.statusCode() != 200) {
-                throw new IllegalStateException(
-                        label + " 실패 (status=" + response.statusCode() + "): " + response.body());
-            }
-            return response.body();
-        } catch (IllegalStateException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new IllegalStateException(label + " 호출 실패: " + e.getMessage(), e);
         }
     }
 

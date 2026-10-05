@@ -71,6 +71,14 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.LOCKED, e.getMessage());
     }
 
+    @ExceptionHandler(io.github.resilience4j.circuitbreaker.CallNotPermittedException.class)
+    public ResponseEntity<Map<String, Object>> handleCircuitBreakerOpen(
+            io.github.resilience4j.circuitbreaker.CallNotPermittedException e) {
+        log.warn("CircuitBreaker OPEN 상태로 요청 차단: {}", e.getMessage());
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE,
+                "외부 서비스가 일시적으로 불안정하여 요청을 처리할 수 없습니다. 잠시 후 다시 시도해주세요.");
+    }
+
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {
         Map<String, Object> body = Map.of(
                 "timestamp", LocalDateTime.now().toString(),
