@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -35,6 +36,8 @@ import java.util.stream.Collectors;
  * Spring AOP 프록시를 우회해 애노테이션이 무시되기 때문에 별도 빈으로 분리했다.
  * RestClient의 read timeout이 실제로는 적용되지 않는 문제를 겪어, ResilientApiClient는 순수
  * java.net.http.HttpClient로 직접 타임아웃을 제어한다.
+ * [중요] 목록 API는 "공유자원 목록" 서비스(/rsrc/list/{키}, rsrcClsCd는 요청 본문)를 쓴다. 예전 물품 목록
+ * 서비스(/rsrc/list/{코드}/{키})로는 시설 카테고리가 401(잘못된권한)이라 8개 카테고리 모두 이쪽으로 통일했다.
  */
 @Component
 public class GongyunuriAdapter {
@@ -168,8 +171,21 @@ public class GongyunuriAdapter {
 
     /** 한 페이지(최대 numOfRows개)만 실제 API로 요청해서 가져온다. */
     private GongyunuriListResponse fetchPage(String rsrcClsCd, String apiKey, int pageNo, int numOfRows) {
-        String url = "https://www.eshare.go.kr/eshare-openapi/rsrc/list/" + rsrcClsCd + "/" + apiKey;
-        String requestBody = String.format("{\"pageNo\":%d,\"numOfRows\":%d}", pageNo, numOfRows);
+        // "공유자원 목록" 서비스: 카테고리 코드는 경로가 아니라 요청 본문(rsrcClsCd)으로 보낸다.
+        String url = "https://www.eshare.go.kr/eshare-openapi/rsrc/list/" + apiKey;
+
+        // 문자열을 직접 이어 붙이지 않고 직렬화해서, 파라미터 값에 따옴표 등이 섞여도 JSON이 깨지거나 주입되지 않게 한다.
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("pageNo", pageNo);
+        body.put("numOfRows", numOfRows);
+        body.put("rsrcClsCd", rsrcClsCd);
+
+        String requestBody;
+        try {
+            requestBody = objectMapper.writeValueAsString(body);
+        } catch (Exception e) {
+            throw new IllegalStateException("공유누리 목록 요청 바디 생성 실패: " + e.getMessage(), e);
+        }
 
         String json = resilientApiClient.postToGongyunuri(url, requestBody, "공유누리 목록 API");
 
