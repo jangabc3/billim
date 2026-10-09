@@ -94,9 +94,10 @@ public class ReservationController {
      * SYSTEM_ADMIN은 전체 기관, INSTITUTION_ADMIN은 본인이 배정된 기관만 가능하다.
      * 권한이 없으면 403 — 본인 예약이 아니라는 사실 자체를 숨길 필요가 없는 관리자 동작이라
      * requireOwnership처럼 404로 위장하지 않는다.
+     * (물품·기관을 지연 로딩하지 않도록 한 번에 함께 조회한다.)
      */
     private void requireInstitutionAccess(CustomUserDetails userDetails, Long reservationId) {
-        Reservation reservation = reservationRepository.findById(reservationId)
+        Reservation reservation = reservationRepository.findWithRentalItemAndInstitutionById(reservationId)
                 .orElseThrow(() -> new ReservationNotFoundException(reservationId));
         Long institutionId = reservation.getRentalItem().getInstitution().getId();
         if (!userDetails.getUser().canManage(institutionId)) {
@@ -108,7 +109,7 @@ public class ReservationController {
     public ResponseEntity<ReservationResponse> getOne(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long id) {
-        return reservationRepository.findById(id)
+        return reservationRepository.findWithRentalItemById(id)
                 .filter(r -> r.getUser().getId().equals(userDetails.getUserId()))
                 .map(this::toResponse)
                 .map(ResponseEntity::ok)
