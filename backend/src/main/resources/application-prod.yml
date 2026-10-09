@@ -1,0 +1,46 @@
+# 운영 환경 설정. SPRING_PROFILES_ACTIVE=prod 로 활성화한다.
+# 이 파일에는 실제 값(비밀번호, 키, 주소)을 쓰지 않는다. 전부 환경변수로 주입한다.
+#
+# 필수 환경변수: DB_URL, DB_USERNAME, DB_PASSWORD, JWT_SECRET, CORS_ALLOWED_ORIGINS
+# 선택 환경변수: GONGYUNURI_API_KEY, SEOUL_API_KEY (없으면 해당 동기화만 비활성)
+
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate # 운영에서 스키마 자동 변경 금지. 엔티티와 DB가 다르면 기동 시 실패시켜 즉시 발견한다.
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+  sql:
+    init:
+      mode: never # data.sql을 운영 DB에 매번 실행하지 않는다.
+
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+server:
+  shutdown: graceful # 배포 시 처리 중인 요청을 마무리하고 종료한다.
+  forward-headers-strategy: framework # 로드밸런서 뒤에서 https/원래 호스트를 올바르게 인식한다.
+
+logging:
+  level:
+    root: INFO
+    com.billim: INFO
+
+# 운영에서는 API 명세를 외부에 공개하지 않는다. (엔드포인트가 아예 생성되지 않아 404)
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+billim:
+  cors:
+    allowed-origin-patterns: ${CORS_ALLOWED_ORIGINS}
