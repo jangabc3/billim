@@ -3,6 +3,7 @@ package com.billim.config;
 import com.billim.config.security.CustomUserDetailsService;
 import com.billim.config.security.JwtAuthenticationFilter;
 import com.billim.config.security.JwtTokenProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -20,22 +21,31 @@ import java.util.List;
  * /api/v1/resources, /api/v1/auth는 로그인 없이 접근 가능(permitAll).
  * 단, /api/v1/auth/me는 예외로 인증이 필요함(authenticated) — 로그인한 사용자의 프로필 조회용.
  * /api/v1/admin/**은 SYSTEM_ADMIN 역할만 접근 가능(hasRole).
+ * /actuator/health/**는 로드밸런서·오케스트레이터의 헬스체크용으로 인증 없이 허용한다.
+ * (application.yml에서 health 외의 actuator 엔드포인트는 노출하지 않는다.)
  * 그 외(/api/v1/reservations, /api/v1/waitlist 등)는 로그인만 하면 접근 가능(authenticated).
  * JwtAuthenticationFilter가 UsernamePasswordAuthenticationFilter보다 먼저 실행되어
  * 토큰이 유효하면 SecurityContext에 인증 정보(역할 포함)를 미리 채워둔다.
  *
- * CORS: Expo 개발 서버(웹 미리보기, Metro 번들러)는 다른 포트(8081 등)에서 실행되므로
- * 브라우저가 기본적으로 요청을 차단한다. 개발 단계에서는 로컬 개발 서버 origin을 허용한다.
+ * CORS: 브라우저(Expo 웹 등)는 다른 origin의 API 요청을 기본적으로 차단한다.
+ * 허용 origin은 설정값(billim.cors.allowed-origin-patterns)으로 받는다.
+ * 로컬은 application.yml 기본값(localhost, 사설 IP), 운영은 환경변수 CORS_ALLOWED_ORIGINS로 실제
+ * 도메인만 지정한다.
+ * (네이티브 앱은 Origin 헤더를 보내지 않아 CORS 대상이 아니다.)
  */
 @Configuration
 public class SecurityConfig {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final CustomUserDetailsService userDetailsService;
+    private final List<String> allowedOriginPatterns;
 
-    public SecurityConfig(JwtTokenProvider jwtTokenProvider, CustomUserDetailsService userDetailsService) {
+    public SecurityConfig(JwtTokenProvider jwtTokenProvider,
+            CustomUserDetailsService userDetailsService,
+            @Value("${billim.cors.allowed-origin-patterns}") List<String> allowedOriginPatterns) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.userDetailsService = userDetailsService;
+        this.allowedOriginPatterns = allowedOriginPatterns;
     }
 
     @Bean
@@ -45,10 +55,12 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/error").permitAll() // 내부 에러 포워딩이 인증 컨텍스트 없이도 403 대신 실제 에러를 보여주게 함
+                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll() // 헬스체크
                         .requestMatchers("/api/v1/auth/me").authenticated() // permitAll보다 먼저: 더 구체적인 규칙이 우선
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/resources/**").permitAll()
-                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll() // 운영(prod)에서는 springdoc 자체를
+                                                                                          // 꺼서 404가 된다
                         .requestMatchers("/api/v1/admin/sync/seoul").hasAuthority("ROLE_SYSTEM_ADMIN")
                         .requestMatchers("/api/v1/admin/sync/gongyunuri").hasAuthority("ROLE_SYSTEM_ADMIN")
                         .requestMatchers("/api/v1/admin/**").hasAuthority("ROLE_SYSTEM_ADMIN")
@@ -61,9 +73,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // 개발 단계 — Expo 웹(localhost:8081), 실기기 미리보기(사설 IP)를 모두 허용한다.
-        // TODO: 실제 배포 시에는 프로덕션 프론트엔드 도메인만 명시하도록 좁혀야 한다.
-        configuration.setAllowedOriginPatterns(List.of("http://localhost:*", "http://192.168.*.*:*"));
+        configuration.setAllowedOriginPatterns(allowedOriginPatterns);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);

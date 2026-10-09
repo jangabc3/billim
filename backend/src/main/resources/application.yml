@@ -3,7 +3,7 @@ spring:
     name: billim-backend
 
   profiles:
-    active: local # 로컬 전용 민감정보(application-local.yml)를 불러오기 위한 설정
+    active: local # 로컬 전용 민감정보(application-local.yml)를 불러오기 위한 설정. 운영은 SPRING_PROFILES_ACTIVE=prod 로 덮어쓴다.
 
   datasource:
     url: jdbc:postgresql://localhost:5432/billim
@@ -42,6 +42,25 @@ seoul:
 jwt:
   secret: ${JWT_SECRET}
   validity-ms: 86400000
+
+billim:
+  cors:
+    # 쉼표로 구분. 로컬 기본값은 Expo 웹(localhost)과 실기기 미리보기(사설 IP).
+    # 운영(application-prod.yml)에서는 환경변수 CORS_ALLOWED_ORIGINS로 실제 도메인만 지정한다.
+    allowed-origin-patterns: http://localhost:*,http://192.168.*.*:*
+
+# 헬스체크만 노출한다. (로드밸런서/컨테이너 오케스트레이터가 "서버 살아있나?" 확인하는 용도)
+# env, beans, heapdump 같은 민감한 엔드포인트는 노출하지 않는다.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true # /actuator/health/liveness, /actuator/health/readiness
+      show-details: never
 
 resilience4j:
   retry:
