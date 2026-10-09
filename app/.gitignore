@@ -15,3 +15,7 @@ web-build/
 
 expo-env.d.ts
 # @end expo-cli
+
+# 로컬 환경변수 (개발자별 사설 IP 등)
+.env.local
+.env*.local
