@@ -150,14 +150,20 @@ public class PublicResource {
         return point;
     }
 
-    /** 외부 API 재수집 시 같은 (source, externalId) row를 이 메서드로 갱신한다 (Upsert). */
+    /**
+     * 외부 API 재수집 시 같은 (source, externalId) row를 이 메서드로 갱신한다 (Upsert).
+     * fee는 새 값이 있을 때만 덮어쓴다 — 공유누리는 이용료를 상세 API로 따로 채우는데, 상세 조회가 실패한
+     * 날 목록 값(null)으로 기존 이용료가 지워지지 않게 하기 위함.
+     */
     public void syncFromExternal(String name, String address, String fee,
             ReceptionStatus receptionStatus, LocalDateTime receptionEndAt,
             String imageUrl, String phone, String operatingHours,
             LocalDateTime externalUpdatedAt) {
         this.name = name;
         this.address = address;
-        this.fee = fee;
+        if (fee != null) {
+            this.fee = fee;
+        }
         this.receptionStatus = receptionStatus;
         this.receptionEndAt = receptionEndAt;
         this.imageUrl = imageUrl;

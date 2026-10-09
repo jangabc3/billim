@@ -8,6 +8,8 @@ import com.billim.domain.resource.ReceptionStatus;
 import com.billim.domain.resource.ResourceSource;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -34,13 +36,29 @@ import java.util.stream.Collectors;
  * read timeout이 실제로는 적용되지 않는 문제를 겪은 적이 있어 동일한 리스크를 안고 있었다.
  * 외부 API 장애 대응(Retry/CircuitBreaker)을 적용하면서, 순수 HttpClient 기반으로 타임아웃을
  * 직접 제어하는 ResilientApiClient를 통해 호출하도록 함께 정리했다.
+ *
+ * [2026-10-09] 외부 데이터 한 건이 이상해도 배치 전체가 죽지 않도록 방어: 좌표 파싱 실패·범위 이탈은 그 건만
+ * 건너뛰고, 이름/주소는 컬럼 길이를 넘으면 잘라서 저장한다.
  */
 @Component
 public class SeoulReservationAdapter {
 
+    private static final Logger log = LoggerFactory.getLogger(SeoulReservationAdapter.class);
+
     private static final String SERVICE_NAME = "tvYeyakCOllect";
     private static final int PAGE_SIZE = 1000;
     private static final String BASE_URL = "http://openapi.seoul.go.kr:8088";
+
+    // PublicResource 컬럼 길이와 맞춘다.
+    private static final int MAX_NAME = 100;
+    private static final int MAX_ADDRESS = 200;
+    private static final int MAX_GU = 20;
+
+    // 서울 외 지역(서울농장 등)도 일부 포함되므로 서울이 아니라 대한민국 범위로 거른다. (0,0 같은 쓰레기 값 차단용)
+    private static final double MIN_LAT = 33.0;
+    private static final double MAX_LAT = 39.0;
+    private static final double MIN_LNG = 124.0;
+    private static final double MAX_LNG = 132.0;
 
     private static final DateTimeFormatter SEOUL_DT_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.S");
 
@@ -69,6 +87,7 @@ public class SeoulReservationAdapter {
     public List<PublicResource> fetchAll() {
         List<PublicResource> result = new ArrayList<>();
         int start = 1;
+        int skipped = 0;
 
         while (true) {
             int end = start + PAGE_SIZE - 1;
@@ -76,10 +95,13 @@ public class SeoulReservationAdapter {
             SeoulReservationXmlResponse response = readXml(xml);
 
             if (response.getRows() != null && !response.getRows().isEmpty()) {
-                response.getRows().stream()
-                        .filter(this::hasValidCoordinate)
-                        .map(this::toPublicResource)
-                        .forEach(result::add);
+                for (SeoulReservationXmlResponse.Row row : response.getRows()) {
+                    if (!hasValidCoordinate(row)) {
+                        skipped++;
+                        continue;
+                    }
+                    result.add(toPublicResource(row));
+                }
             } else {
                 break;
             }
@@ -91,6 +113,9 @@ public class SeoulReservationAdapter {
             start = end + 1;
         }
 
+        if (skipped > 0) {
+            log.warn("서울시 예약 데이터 중 좌표가 없거나 비정상이라 건너뛴 건수: {}", skipped);
+        }
         return result;
     }
 
@@ -124,10 +149,17 @@ public class SeoulReservationAdapter {
     }
 
     // 좌표 없는 자원은 DB의 longitude/latitude NOT NULL 제약조건 위반으로 저장이 실패한다.
-    // 위치 기반 검색(PostGIS)이 핵심 기능인 서비스 특성상, 좌표 없는 자원은 애초에 걸러낸다.
+    // 위치 기반 검색(PostGIS)이 핵심 기능인 서비스 특성상, 좌표가 없거나 숫자가 아니거나 범위를 벗어난 자원은 걸러낸다.
     private boolean hasValidCoordinate(SeoulReservationXmlResponse.Row row) {
-        return row.getX() != null && !row.getX().isBlank()
-                && row.getY() != null && !row.getY().isBlank();
+        BigDecimal lat = parseCoordinateOrNull(row.getY());
+        BigDecimal lng = parseCoordinateOrNull(row.getX());
+        if (lat == null || lng == null) {
+            return false;
+        }
+        double latitude = lat.doubleValue();
+        double longitude = lng.doubleValue();
+        return latitude >= MIN_LAT && latitude <= MAX_LAT
+                && longitude >= MIN_LNG && longitude <= MAX_LNG;
     }
 
     private PublicResource toPublicResource(SeoulReservationXmlResponse.Row row) {
@@ -136,13 +168,13 @@ public class SeoulReservationAdapter {
         return PublicResource.fromExternal(
                 ResourceSource.SEOUL_RESERVATION,
                 row.getSvcId(),
-                cleanName(row.getSvcNm()),
+                truncate(cleanName(row.getSvcNm()), MAX_NAME),
                 mapCategory(row.getMaxClassNm()),
-                row.getPlaceNm(), // 도로명주소가 없어 장소명으로 대체
-                row.getAreaNm(), // 구
+                truncate(row.getPlaceNm() == null ? "" : row.getPlaceNm(), MAX_ADDRESS), // 도로명주소가 없어 장소명으로 대체
+                row.getAreaNm() == null ? "확인 필요" : truncate(row.getAreaNm(), MAX_GU), // 구
                 null, // 동 정보 없음 — 추후 좌표 역지오코딩으로 보완 예정
-                parseCoordinate(row.getY()), // Y = 위도
-                parseCoordinate(row.getX()), // X = 경도
+                parseCoordinateOrNull(row.getY()), // Y = 위도
+                parseCoordinateOrNull(row.getX()), // X = 경도
                 row.getPayAtNm(),
                 mapReceptionStatus(row.getSvcStatNm(), receptionEndAt),
                 receptionEndAt,
@@ -173,10 +205,22 @@ public class SeoulReservationAdapter {
                 .replace("&amp;", "&"); // &amp;는 마지막에 — 먼저 하면 다른 엔티티가 이중 치환될 수 있음
     }
 
-    private BigDecimal parseCoordinate(String raw) {
+    /** DB 컬럼 길이를 넘는 값이 한 건만 있어도 배치 전체가 실패하므로, 넘치면 잘라서 저장한다. */
+    private String truncate(String value, int max) {
+        if (value == null || value.length() <= max)
+            return value;
+        return value.substring(0, max);
+    }
+
+    /** 숫자가 아니면 예외 대신 null — 호출부(hasValidCoordinate)가 그 건만 걸러낸다. */
+    private BigDecimal parseCoordinateOrNull(String raw) {
         if (raw == null || raw.isBlank())
             return null;
-        return new BigDecimal(raw.trim());
+        try {
+            return new BigDecimal(raw.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private LocalDateTime parseDateTimeSafely(String raw) {
