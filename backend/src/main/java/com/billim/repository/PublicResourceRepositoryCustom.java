@@ -15,5 +15,6 @@ import org.springframework.data.domain.Pageable;
 public interface PublicResourceRepositoryCustom {
 
     Page<PublicResource> search(Category category, String gu,
-            ReceptionStatus receptionStatus, String keyword, Boolean freeOnly, Pageable pageable);
+            ReceptionStatus receptionStatus, String keyword, Boolean freeOnly,
+            Integer closingWithinDays, Pageable pageable);
 }

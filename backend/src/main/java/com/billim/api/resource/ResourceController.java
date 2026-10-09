@@ -1,7 +1,6 @@
 package com.billim.api.resource;
 
 import com.billim.domain.item.Category;
-import com.billim.domain.resource.PublicResource;
 import com.billim.domain.resource.ReceptionStatus;
 import com.billim.repository.PublicResourceRepository;
 import org.springframework.data.domain.Page;
@@ -17,6 +16,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/resources")
 public class ResourceController {
 
+    private static final int MAX_CLOSING_DAYS = 30;
+
     private final PublicResourceRepository publicResourceRepository;
 
     public ResourceController(PublicResourceRepository publicResourceRepository) {
@@ -26,6 +27,8 @@ public class ResourceController {
     /**
      * 조건별 검색 — category/gu/receptionStatus/keyword를 조합해서 찾는다.
      * 전부 선택값(null 허용)이라, 아무것도 안 넘기면 전체 목록을 페이징해서 보여주는 것과 같다.
+     *
+     * closingWithinDays: 지금부터 N일(1~30) 안에 접수가 끝나는 자원만, 마감이 가까운 순으로 돌려준다.
      */
     @GetMapping("/search")
     public Page<PublicResourceResponse> search(
@@ -34,10 +37,15 @@ public class ResourceController {
             @RequestParam(required = false) ReceptionStatus receptionStatus,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Boolean freeOnly,
+            @RequestParam(required = false) Integer closingWithinDays,
             Pageable pageable) {
+        Integer days = closingWithinDays == null
+                ? null
+                : Math.min(Math.max(closingWithinDays, 1), MAX_CLOSING_DAYS);
+
         return publicResourceRepository
-                .search(category, gu, receptionStatus, keyword, freeOnly, pageable)
-                .map(this::toResponse);
+                .search(category, gu, receptionStatus, keyword, freeOnly, days, pageable)
+                .map(PublicResourceResponse::from);
     }
 
     /**
@@ -52,7 +60,7 @@ public class ResourceController {
             Pageable pageable) {
         return publicResourceRepository
                 .findNearby(lat, lng, radiusMeters, pageable)
-                .map(this::toResponse);
+                .map(PublicResourceResponse::from);
     }
 
     /**
@@ -62,28 +70,8 @@ public class ResourceController {
     @GetMapping("/{id}")
     public ResponseEntity<PublicResourceResponse> getOne(@PathVariable Long id) {
         return publicResourceRepository.findById(id)
-                .map(this::toResponse)
+                .map(PublicResourceResponse::from)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
-    }
-
-    private PublicResourceResponse toResponse(PublicResource r) {
-        return new PublicResourceResponse(
-                r.getId(),
-                r.getSource(),
-                r.getName(),
-                r.getCategory(),
-                r.getAddress(),
-                r.getGu(),
-                r.getLatitude(),
-                r.getLongitude(),
-                r.getFee(),
-                r.getSubCategory(),
-                r.getReceptionStatus(),
-                r.getReceptionEndAt(),
-                r.getReservationType(),
-                r.getReservationUrl(),
-                r.getImageUrl(),
-                r.getLastSyncedAt());
     }
 }
