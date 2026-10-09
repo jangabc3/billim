@@ -1,6 +1,6 @@
 import { View, Text, ScrollView, ActivityIndicator, Pressable, StyleSheet } from 'react-native';
-import { useEffect, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useCallback, useRef, useState } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import TopBar from '../../src/components/TopBar';
 import SectionIntro from '../../src/components/SectionIntro';
@@ -20,25 +20,50 @@ export default function BookmarksScreen() {
   const [items, setItems] = useState<ResourceCardItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadedOnce = useRef(false);
 
-  useEffect(() => {
-    if (authLoading) return;
+  // 이 탭에 들어올 때마다 서버 기준 최신 목록을 다시 가져온다.
+  // (토글 직후에 바로 다시 불러오면 "저장 요청"과 "목록 요청"이 동시에 나가서
+  //  저장이 반영되기 전의 옛 목록을 받을 수 있다. 탭 진입 시점에는 저장이 이미 끝나 있다.)
+  useFocusEffect(
+    useCallback(() => {
+      if (authLoading) return;
 
-    if (!isLoggedIn) {
-      setItems([]);
-      setLoading(false);
-      return;
-    }
+      if (!isLoggedIn) {
+        setItems([]);
+        setLoading(false);
+        loadedOnce.current = false;
+        return;
+      }
 
-    setLoading(true);
-    setError(null);
-    favoriteApi
-      .list()
-      .then((resources) => setItems(resources.map((r) => toResourceCardItem(r))))
-      .catch((e) => setError(e instanceof ApiError ? e.message : '즐겨찾기를 불러오지 못했어요.'))
-      .finally(() => setLoading(false));
-    // bookmarked가 바뀔 때마다(토글할 때마다) 목록을 다시 불러와서 화면을 최신 상태로 맞춘다.
-  }, [isLoggedIn, authLoading, bookmarked]);
+      let cancelled = false;
+      // 처음 한 번만 스피너를 보여주고, 이후 재진입에서는 기존 목록을 유지한 채 조용히 갱신한다.
+      if (!loadedOnce.current) setLoading(true);
+      setError(null);
+
+      favoriteApi
+        .list()
+        .then((resources) => {
+          if (cancelled) return;
+          setItems(resources.map((r) => toResourceCardItem(r)));
+          loadedOnce.current = true;
+        })
+        .catch((e) => {
+          if (cancelled) return;
+          setError(e instanceof ApiError ? e.message : '즐겨찾기를 불러오지 못했어요.');
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+
+      return () => {
+        cancelled = true;
+      };
+    }, [isLoggedIn, authLoading]),
+  );
+
+  // 이 화면에서 북마크를 해제한 항목은 서버 응답을 기다리지 않고 바로 목록에서 숨긴다.
+  const visibleItems = items.filter((item) => bookmarked.has(item.id));
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.surface }} contentContainerStyle={{ paddingBottom: 20 }}>
@@ -66,7 +91,7 @@ export default function BookmarksScreen() {
           <Text style={{ fontSize: 12.5, fontFamily: fonts.regular, color: colors.ink3, textAlign: 'center', paddingTop: 30 }}>{error}</Text>
         )}
 
-        {isLoggedIn && !loading && !error && items.length === 0 && (
+        {isLoggedIn && !loading && !error && visibleItems.length === 0 && (
           <View style={styles.empty}>
             <View style={styles.emptyIcon}>
               <Svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke={colors.ink3} strokeWidth={2}>
@@ -78,7 +103,7 @@ export default function BookmarksScreen() {
           </View>
         )}
 
-        {isLoggedIn && !loading && !error && items.map((item) => (
+        {isLoggedIn && !loading && !error && visibleItems.map((item) => (
           <ResourceCard
             key={item.id}
             item={{ ...item, bookmarked: true }}
