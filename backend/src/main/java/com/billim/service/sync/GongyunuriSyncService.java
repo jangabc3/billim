@@ -89,7 +89,9 @@ public class GongyunuriSyncService {
                     .map(existing -> {
                         existing.syncFromExternal(
                                 fresh.getName(), fresh.getAddress(), fresh.getFee(),
-                                fresh.getReceptionStatus(), fresh.getImageUrl(), fresh.getExternalUpdatedAt());
+                                fresh.getReceptionStatus(), fresh.getReceptionEndAt(),
+                                fresh.getImageUrl(), fresh.getPhone(), fresh.getOperatingHours(),
+                                fresh.getExternalUpdatedAt());
                         return true;
                     })
                     .orElseGet(() -> {

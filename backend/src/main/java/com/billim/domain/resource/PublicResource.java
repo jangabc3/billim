@@ -1,5 +1,6 @@
 package com.billim.domain.resource;
 
+import com.billim.common.Times;
 import com.billim.domain.item.Category;
 import com.billim.domain.item.RentalItem;
 import jakarta.persistence.*;
@@ -129,7 +130,7 @@ public class PublicResource {
         r.phone = phone;
         r.operatingHours = operatingHours;
         r.externalUpdatedAt = externalUpdatedAt;
-        r.lastSyncedAt = LocalDateTime.now();
+        r.lastSyncedAt = Times.now();
         return r;
     }
 
@@ -151,15 +152,19 @@ public class PublicResource {
 
     /** 외부 API 재수집 시 같은 (source, externalId) row를 이 메서드로 갱신한다 (Upsert). */
     public void syncFromExternal(String name, String address, String fee,
-            ReceptionStatus receptionStatus, String imageUrl,
+            ReceptionStatus receptionStatus, LocalDateTime receptionEndAt,
+            String imageUrl, String phone, String operatingHours,
             LocalDateTime externalUpdatedAt) {
         this.name = name;
         this.address = address;
         this.fee = fee;
         this.receptionStatus = receptionStatus;
+        this.receptionEndAt = receptionEndAt;
         this.imageUrl = imageUrl;
+        this.phone = phone;
+        this.operatingHours = operatingHours;
         this.externalUpdatedAt = externalUpdatedAt;
-        this.lastSyncedAt = LocalDateTime.now();
+        this.lastSyncedAt = Times.now();
     }
 
     /**
@@ -171,9 +176,32 @@ public class PublicResource {
         this.subCategory = subCategory;
     }
 
+    /**
+     * 저장된 상태값은 하루 한 번 동기화 때만 갱신되므로, 응답을 만들 때 마감 시각을 기준으로 보정한다.
+     * - 마감 시각이 지났으면 무조건 CLOSED
+     * - 접수중(OPEN)인데 24시간 안에 끝나면 CLOSING_SOON
+     */
+    public ReceptionStatus effectiveReceptionStatus(LocalDateTime now) {
+        if (receptionStatus == null) {
+            return ReceptionStatus.UNKNOWN;
+        }
+        if (receptionStatus == ReceptionStatus.CLOSED) {
+            return ReceptionStatus.CLOSED;
+        }
+        if (receptionEndAt != null) {
+            if (receptionEndAt.isBefore(now)) {
+                return ReceptionStatus.CLOSED;
+            }
+            if (receptionStatus == ReceptionStatus.OPEN && receptionEndAt.isBefore(now.plusDays(1))) {
+                return ReceptionStatus.CLOSING_SOON;
+            }
+        }
+        return receptionStatus;
+    }
+
     @PrePersist
     void onCreate() {
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = Times.now();
     }
 
     public Long getId() {
@@ -242,6 +270,14 @@ public class PublicResource {
 
     public String getImageUrl() {
         return imageUrl;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public String getOperatingHours() {
+        return operatingHours;
     }
 
     public LocalDateTime getExternalUpdatedAt() {

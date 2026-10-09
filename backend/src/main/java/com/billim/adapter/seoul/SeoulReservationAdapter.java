@@ -1,6 +1,7 @@
 package com.billim.adapter.seoul;
 
 import com.billim.adapter.ResilientApiClient;
+import com.billim.common.Times;
 import com.billim.domain.item.Category;
 import com.billim.domain.resource.PublicResource;
 import com.billim.domain.resource.ReceptionStatus;
@@ -210,7 +211,7 @@ public class SeoulReservationAdapter {
             return ReceptionStatus.CLOSED;
         }
         if (svcStatNm.contains("접수중")) {
-            if (receptionEndAt != null && receptionEndAt.isBefore(LocalDateTime.now().plusDays(1))) {
+            if (receptionEndAt != null && receptionEndAt.isBefore(Times.now().plusDays(1))) {
                 return ReceptionStatus.CLOSING_SOON; // 24시간 이내 마감이면 "오늘 마감"류 배지로 사용
             }
             return ReceptionStatus.OPEN;
