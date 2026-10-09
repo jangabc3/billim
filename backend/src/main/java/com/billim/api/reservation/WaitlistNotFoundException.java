@@ -1,7 +1,11 @@
 package com.billim.api.reservation;
 
-public class WaitlistNotFoundException extends RuntimeException {
+import com.billim.common.error.ApiException;
+import com.billim.common.error.ErrorCode;
+
+/** 존재하지 않거나 본인 소유가 아닌 대기 신청에 접근했을 때. (404) */
+public class WaitlistNotFoundException extends ApiException {
     public WaitlistNotFoundException(Long waitlistId) {
-        super("존재하지 않는 대기 신청입니다: " + waitlistId);
+        super(ErrorCode.WAITLIST_NOT_FOUND);
     }
 }

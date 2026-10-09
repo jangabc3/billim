@@ -1,7 +1,11 @@
 package com.billim.api.auth;
 
-public class AccountLockedException extends RuntimeException {
+import com.billim.common.error.ApiException;
+import com.billim.common.error.ErrorCode;
+
+/** 로그인 실패가 누적되어 계정이 잠긴 상태에서 로그인을 시도했을 때. (423) */
+public class AccountLockedException extends ApiException {
     public AccountLockedException() {
-        super("로그인 시도가 너무 많아 일시적으로 계정이 잠겼습니다. 잠시 후 다시 시도해주세요.");
+        super(ErrorCode.AUTH_ACCOUNT_LOCKED);
     }
 }
