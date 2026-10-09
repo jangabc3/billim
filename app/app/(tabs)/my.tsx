@@ -1,11 +1,9 @@
-import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import Svg, { Path, Rect } from 'react-native-svg';
 import TopBar from '../../src/components/TopBar';
 import { useBookmarks } from '../../src/contexts/BookmarkContext';
 import { useAuth } from '../../src/contexts/AuthContext';
-import { reservationApi, ApiError, type ReservationResponse } from '../../src/api/client';
 import { colors, radius, fonts } from '../../src/theme/tokens';
 
 const menuRows = [
@@ -14,52 +12,10 @@ const menuRows = [
   { label: '정보 오류 제보', desc: '정확한 정보를 함께 만들어요', icon: <><Rect x="3" y="6" width="18" height="14" rx="2" /><Path d="M3 10h18" /></> },
 ];
 
-const STATUS_LABEL: Record<ReservationResponse['status'], string> = {
-  CONFIRMED: '예약중',
-  RENTED: '대여중',
-  RETURNED: '반납완료',
-  CANCELED: '취소됨',
-  EXPIRED: '기간만료',
-};
-
-const STATUS_COLOR: Record<ReservationResponse['status'], string> = {
-  CONFIRMED: colors.brand,
-  RENTED: colors.newTone,
-  RETURNED: colors.ink3,
-  CANCELED: '#E0453C',
-  EXPIRED: colors.ink3,
-};
-
-const ACTIVE_STATUSES: ReservationResponse['status'][] = ['CONFIRMED', 'RENTED'];
-
 export default function MyScreen() {
   const router = useRouter();
   const { bookmarked } = useBookmarks();
   const { isLoggedIn, userName, loading, logout } = useAuth();
-
-  const [reservations, setReservations] = useState<ReservationResponse[]>([]);
-  const [resLoading, setResLoading] = useState(true);
-  const [resError, setResError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (loading) return;
-
-    if (!isLoggedIn) {
-      setReservations([]);
-      setResLoading(false);
-      return;
-    }
-
-    setResLoading(true);
-    setResError(null);
-    reservationApi
-      .list()
-      .then(setReservations)
-      .catch((e) => setResError(e instanceof ApiError ? e.message : '예약 목록을 불러오지 못했어요.'))
-      .finally(() => setResLoading(false));
-  }, [isLoggedIn, loading]);
-
-  const activeCount = reservations.filter((r) => ACTIVE_STATUSES.includes(r.status)).length;
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.surface }} contentContainerStyle={{ paddingBottom: 20 }}>
@@ -68,7 +24,7 @@ export default function MyScreen() {
       {!loading && !isLoggedIn && (
         <View style={styles.authCard}>
           <Text style={styles.authTitle}>로그인하고 시작해보세요</Text>
-          <Text style={styles.authDesc}>예약 현황과 대기 순번을 확인할 수 있어요.</Text>
+          <Text style={styles.authDesc}>관심 있는 물품을 저장하고 어디서든 확인할 수 있어요.</Text>
           <View style={styles.authBtnRow}>
             <Pressable style={styles.loginBtn} onPress={() => router.push('/login')}>
               <Text style={styles.loginBtnText}>로그인</Text>
@@ -95,44 +51,8 @@ export default function MyScreen() {
       <View style={styles.statBar}>
         <StatCell value={String(bookmarked.size)} label="관심 물품" />
         <View style={styles.divider} />
-        <StatCell value={String(activeCount)} label="진행 중인 대여" />
-        <View style={styles.divider} />
         <StatCell value="성동구" label="관심 지역" highlight />
       </View>
-
-      {!loading && isLoggedIn && (
-        <View style={{ paddingHorizontal: 20, marginBottom: 22 }}>
-          <Text style={styles.sectionTitle}>내 예약</Text>
-
-          {resLoading && (
-            <View style={{ paddingVertical: 24, alignItems: 'center' }}>
-              <ActivityIndicator color={colors.brand} />
-            </View>
-          )}
-
-          {!resLoading && resError && (
-            <Text style={{ fontSize: 12.5, fontFamily: fonts.regular, color: colors.ink3, textAlign: 'center', paddingVertical: 16 }}>{resError}</Text>
-          )}
-
-          {!resLoading && !resError && reservations.length === 0 && (
-            <Text style={{ fontSize: 12.5, fontFamily: fonts.regular, color: colors.ink3, paddingVertical: 16 }}>아직 예약한 물품이 없어요.</Text>
-          )}
-
-          {!resLoading && !resError && reservations.map((r) => (
-            <View key={r.id} style={styles.reservationRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.reservationName}>{r.rentalItemName}</Text>
-                <Text style={styles.reservationDate}>
-                  {new Date(r.confirmedAt).toLocaleDateString('ko-KR')} ~ {new Date(r.expiresAt).toLocaleDateString('ko-KR')}
-                </Text>
-              </View>
-              <View style={[styles.statusBadge, { backgroundColor: STATUS_COLOR[r.status] + '22' }]}>
-                <Text style={[styles.statusText, { color: STATUS_COLOR[r.status] }]}>{STATUS_LABEL[r.status]}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      )}
 
       <View style={{ paddingHorizontal: 20 }}>
         {menuRows.map((row) => (
@@ -203,12 +123,6 @@ const styles = StyleSheet.create({
   divider: { width: 1, backgroundColor: 'rgba(255,255,255,0.12)' },
   statValue: { fontSize: 15, fontFamily: fonts.bold, color: '#fff' },
   statLabel: { fontSize: 10.5, fontFamily: fonts.regular, color: 'rgba(255,255,255,0.6)', marginTop: 3 },
-  sectionTitle: { fontSize: 14, fontFamily: fonts.bold, color: colors.ink, marginBottom: 10 },
-  reservationRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.line },
-  reservationName: { fontSize: 13.5, fontFamily: fonts.semibold, color: colors.ink },
-  reservationDate: { fontSize: 11, fontFamily: fonts.regular, color: colors.ink3, marginTop: 3 },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
-  statusText: { fontSize: 11, fontFamily: fonts.bold },
   menuRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, borderTopWidth: 1, borderTopColor: colors.line },
   menuIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.grayFill, alignItems: 'center', justifyContent: 'center' },
   menuLabel: { fontSize: 14, fontFamily: fonts.semibold, color: colors.ink },
