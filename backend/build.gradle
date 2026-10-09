@@ -47,6 +47,9 @@ dependencies {
     // API 문서화
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
 
+    // 운영 모니터링 — 헬스체크(/actuator/health)용
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
     // 외부 API(공유누리·서울시) 장애 대응 — Timeout/Retry/Circuit Breaker
     implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
     implementation 'org.springframework.boot:spring-boot-starter-aop'
@@ -69,3 +72,4 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
 }
+
