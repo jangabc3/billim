@@ -27,6 +27,7 @@ public class FavoriteResourceService {
     }
 
     /** 로그인한 사용자의 즐겨찾기 목록 — 최근 추가한 순. */
+    @Transactional(readOnly = true)
     public List<FavoriteResource> list(Long userId) {
         return favoriteResourceRepository.findByUserIdOrderByCreatedAtDesc(userId);
     }
