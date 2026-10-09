@@ -13,12 +13,12 @@ spring:
 
   jpa:
     defer-datasource-initialization: true
+    open-in-view: false # 요청 처리 내내 DB 커넥션을 붙잡지 않도록 함. 지연 로딩은 서비스 트랜잭션 안에서만 사용한다.
     hibernate:
       ddl-auto: update
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
     show-sql: true
 
   sql:
