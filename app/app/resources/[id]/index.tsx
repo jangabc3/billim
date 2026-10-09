@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { View, Text, Image, Pressable, ScrollView, StyleSheet, Linking } from 'react-native';
+import { View, Text, Image, Pressable, ScrollView, StyleSheet, Linking, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import Svg, { Path, Rect, Circle } from 'react-native-svg';
-import { resourceApi } from '../../../src/api/client';
+import Svg, { Path, Rect } from 'react-native-svg';
+import { resourceApi, ApiError } from '../../../src/api/client';
 import type { PublicResource } from '../../../src/types/resource';
 import { colors, radius, fonts } from '../../../src/theme/tokens';
 
@@ -10,16 +10,48 @@ export default function DetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const [item, setItem] = useState<PublicResource | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [heart, setHeart] = useState(false);
 
   useEffect(() => {
-    // TODO: 백엔드에 GET /api/v1/resources/{id} 생기면 교체
-    resourceApi.list().then((all) => {
-      setItem(all.find((r) => String(r.id) === id) ?? null);
-    });
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    resourceApi
+      .getOne(Number(id))
+      .then((r) => { if (!cancelled) setItem(r); })
+      .catch((e) => {
+        if (cancelled) return;
+        if (e instanceof ApiError && e.status === 404) setError('존재하지 않는 물품이에요.');
+        else setError(e instanceof ApiError ? e.message : '물품 정보를 불러오지 못했어요.');
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+
+    return () => { cancelled = true; };
   }, [id]);
 
-  if (!item) return <View style={{ flex: 1, backgroundColor: colors.surface }} />;
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={colors.brand} />
+      </View>
+    );
+  }
+
+  if (error || !item) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', padding: 30 }}>
+        <Text style={{ fontSize: 14, fontFamily: fonts.bold, color: colors.ink, marginBottom: 14 }}>
+          {error ?? '물품을 찾을 수 없어요.'}
+        </Text>
+        <Pressable onPress={() => router.back()}>
+          <Text style={{ fontSize: 13, fontFamily: fonts.semibold, color: colors.brand }}>돌아가기</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.surface }}>
