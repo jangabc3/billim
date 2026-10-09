@@ -20,7 +20,12 @@ import java.time.LocalDateTime;
  * Upsert(신규면 INSERT, 이미 있으면 UPDATE)로 처리한다.
  */
 @Entity
-@Table(name = "public_resources", uniqueConstraints = @UniqueConstraint(columnNames = { "source", "external_id" }))
+@Table(name = "public_resources", uniqueConstraints = @UniqueConstraint(columnNames = { "source",
+        "external_id" }), indexes = {
+                @Index(name = "idx_public_resources_end_at", columnList = "reception_end_at"),
+                @Index(name = "idx_public_resources_category", columnList = "category"),
+                @Index(name = "idx_public_resources_gu", columnList = "gu")
+        })
 public class PublicResource {
 
     // SRID 4326 = WGS84, GPS가 쓰는 전 세계 표준 위경도 좌표계.
