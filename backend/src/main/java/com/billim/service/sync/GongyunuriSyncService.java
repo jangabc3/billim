@@ -11,10 +11,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -25,10 +27,17 @@ import java.util.stream.Collectors;
  * API 일일 호출 한도를 초과하므로, SyncCursor에 카테고리별로 "마지막으로 읽은 페이지"를
  * 저장해두고 실행할 때마다 그 다음부터 이어서 읽는다. 전체를 다 읽으면(reachedEnd)
  * 커서를 리셋해서 처음부터 다시 순회한다 — 새로 등록된 물품도 결국 다시 훑게 하기 위함.
+ * 이런 증분 방식이라 "이번에 안 받은 행 = 사라진 행"으로 볼 수 없어서, 서울시와 달리
+ * 사라진 항목 마감 처리는 하지 않는다.
  *
- * 목록 API는 이용료·세부분류를 안 줘서, 목록을 다 저장한 뒤 상세 API를 배치로 호출해
+ * 목록 API는 이용료·세부분류를 안 줘서, 목록 수집 뒤 상세 API를 배치로 호출해
  * fee(무료/유료)와 subCategory를 덧씌운다. 상세 API가 실패해도 목록 저장 자체는
- * 이미 끝난 뒤라 전체 동기화가 죽지 않는다 — 로그만 남기고 다음 카테고리로 넘어간다.
+ * 진행된다 — 로그만 남기고 계속한다.
+ *
+ * 설계 포인트
+ * - 외부 API 호출(목록 최대 40페이지 + 상세 배치)은 트랜잭션 밖에서 하고, DB 반영과 커서 갱신만
+ * 하나의 짧은 트랜잭션으로 묶는다. (반영이 실패하면 커서도 전진하지 않는다.)
+ * - 기존 행은 이번에 받은 externalId들만 묶어서 한 번에 읽는다(행마다 조회하지 않는다).
  *
  * 카테고리 한 번 호출할 때마다 SyncLog를 하나 남긴다 — 스케줄러가 매일 새벽 8개
  * 카테고리를 돌면서 8건, 관리자가 수동으로 트리거해도 그때마다 1건씩 쌓인다.
@@ -38,23 +47,28 @@ public class GongyunuriSyncService {
 
     private static final Logger log = LoggerFactory.getLogger(GongyunuriSyncService.class);
 
+    // IN 조건에 한 번에 넣을 externalId 개수
+    private static final int LOOKUP_CHUNK_SIZE = 500;
+
     private final GongyunuriAdapter adapter;
     private final PublicResourceRepository repository;
     private final SyncCursorRepository cursorRepository;
     private final SyncLogRecorder syncLogRecorder;
+    private final TransactionTemplate transactionTemplate;
 
     @Value("${gongyunuri.api-key}")
     private String apiKey;
 
     public GongyunuriSyncService(GongyunuriAdapter adapter, PublicResourceRepository repository,
-            SyncCursorRepository cursorRepository, SyncLogRecorder syncLogRecorder) {
+            SyncCursorRepository cursorRepository, SyncLogRecorder syncLogRecorder,
+            TransactionTemplate transactionTemplate) {
         this.adapter = adapter;
         this.repository = repository;
         this.cursorRepository = cursorRepository;
         this.syncLogRecorder = syncLogRecorder;
+        this.transactionTemplate = transactionTemplate;
     }
 
-    @Transactional
     public int syncCategory(String rsrcClsCd) {
         SyncLog syncLog = SyncLog.start(ResourceSource.SHARENURI);
         try {
@@ -74,38 +88,74 @@ public class GongyunuriSyncService {
 
     /** @return {newCount, updatedCount} */
     private int[] doSync(String rsrcClsCd) {
-        SyncCursor cursor = cursorRepository.findById(rsrcClsCd)
-                .orElseGet(() -> new SyncCursor(rsrcClsCd));
+        int startPage = cursorRepository.findById(rsrcClsCd)
+                .map(SyncCursor::nextStartPage)
+                .orElseGet(() -> new SyncCursor(rsrcClsCd).nextStartPage());
 
-        GongyunuriAdapter.FetchResult result = adapter.fetchSeoulResourcesFrom(
-                rsrcClsCd, apiKey, cursor.nextStartPage());
-
+        // 네트워크 호출은 모두 트랜잭션 밖에서
+        GongyunuriAdapter.FetchResult result = adapter.fetchSeoulResourcesFrom(rsrcClsCd, apiKey, startPage);
         List<PublicResource> fetched = result.content();
+        Map<String, GongyunuriAdapter.DetailInfo> details = fetchDetailsSafely(fetched);
+
+        return Objects.requireNonNull(transactionTemplate.execute(status -> {
+            int[] counts = upsert(fetched, details);
+            updateCursor(rsrcClsCd, result);
+            return counts;
+        }));
+    }
+
+    private int[] upsert(List<PublicResource> fetched, Map<String, GongyunuriAdapter.DetailInfo> details) {
+        Map<String, PublicResource> byExternalId = loadExisting(fetched);
 
         int newCount = 0;
         int updatedCount = 0;
         for (PublicResource fresh : fetched) {
-            boolean existed = repository.findBySourceAndExternalId(ResourceSource.SHARENURI, fresh.getExternalId())
-                    .map(existing -> {
-                        existing.syncFromExternal(
-                                fresh.getName(), fresh.getAddress(), fresh.getFee(),
-                                fresh.getReceptionStatus(), fresh.getReceptionEndAt(),
-                                fresh.getImageUrl(), fresh.getPhone(), fresh.getOperatingHours(),
-                                fresh.getExternalUpdatedAt());
-                        return true;
-                    })
-                    .orElseGet(() -> {
-                        repository.save(fresh);
-                        return false;
-                    });
-            if (existed) {
+            PublicResource existing = byExternalId.get(fresh.getExternalId());
+            if (existing != null) {
+                existing.syncFromExternal(
+                        fresh.getName(), fresh.getAddress(), fresh.getFee(),
+                        fresh.getReceptionStatus(), fresh.getReceptionEndAt(),
+                        fresh.getImageUrl(), fresh.getPhone(), fresh.getOperatingHours(),
+                        fresh.getExternalUpdatedAt());
                 updatedCount++;
             } else {
+                repository.save(fresh);
+                byExternalId.put(fresh.getExternalId(), fresh);
                 newCount++;
             }
         }
 
-        enrichWithDetail(fetched);
+        // 상세 API 결과(이용료·세부분류)를 방금 저장/갱신한 행에 덧씌운다.
+        for (Map.Entry<String, GongyunuriAdapter.DetailInfo> entry : details.entrySet()) {
+            PublicResource resource = byExternalId.get(entry.getKey());
+            if (resource != null) {
+                resource.applyGongyunuriDetail(entry.getValue().fee(), entry.getValue().subCategory());
+            }
+        }
+
+        return new int[] { newCount, updatedCount };
+    }
+
+    /** 이번에 받은 externalId에 해당하는 기존 행을 묶음(chunk)으로 나눠 조회한다. */
+    private Map<String, PublicResource> loadExisting(List<PublicResource> fetched) {
+        List<String> ids = fetched.stream()
+                .map(PublicResource::getExternalId)
+                .distinct()
+                .collect(Collectors.toList());
+
+        Map<String, PublicResource> byExternalId = new HashMap<>();
+        for (int i = 0; i < ids.size(); i += LOOKUP_CHUNK_SIZE) {
+            List<String> chunk = ids.subList(i, Math.min(i + LOOKUP_CHUNK_SIZE, ids.size()));
+            for (PublicResource existing : repository.findBySourceAndExternalIdIn(ResourceSource.SHARENURI, chunk)) {
+                byExternalId.put(existing.getExternalId(), existing);
+            }
+        }
+        return byExternalId;
+    }
+
+    private void updateCursor(String rsrcClsCd, GongyunuriAdapter.FetchResult result) {
+        SyncCursor cursor = cursorRepository.findById(rsrcClsCd)
+                .orElseGet(() -> new SyncCursor(rsrcClsCd));
 
         if (result.reachedEnd()) {
             cursor.reset();
@@ -114,38 +164,27 @@ public class GongyunuriSyncService {
             cursor.advance(result.lastPageRead());
         }
         cursorRepository.save(cursor);
-
-        return new int[] { newCount, updatedCount };
     }
 
     /**
-     * 방금 목록으로 저장/갱신한 자원들의 externalId를 모아 상세 API를 배치 호출하고,
-     * fee(무료/유료)와 subCategory를 채워넣는다. 실패해도 목록 동기화 결과는 그대로 유지된다.
+     * 방금 받은 자원들의 externalId로 상세 API를 배치 호출해 fee/subCategory 정보를 가져온다.
+     * 실패해도 목록 동기화는 계속 진행해야 하므로 예외는 로그만 남기고 빈 결과를 돌려준다.
      */
-    private void enrichWithDetail(List<PublicResource> fetched) {
+    private Map<String, GongyunuriAdapter.DetailInfo> fetchDetailsSafely(List<PublicResource> fetched) {
         List<String> rsrcNos = fetched.stream()
                 .map(PublicResource::getExternalId)
                 .collect(Collectors.toList());
 
-        if (rsrcNos.isEmpty())
-            return;
+        if (rsrcNos.isEmpty()) {
+            return Map.of();
+        }
 
-        Map<String, GongyunuriAdapter.DetailInfo> details;
         try {
-            details = adapter.fetchDetailBatch(rsrcNos, apiKey);
+            return adapter.fetchDetailBatch(rsrcNos, apiKey);
         } catch (Exception e) {
             log.warn("공유누리 상세 API 조회 실패 — 목록 데이터는 그대로 저장됨. 대상 {}건, 사유: {}",
                     rsrcNos.size(), e.getMessage());
-            return;
-        }
-
-        for (String rsrcNo : rsrcNos) {
-            GongyunuriAdapter.DetailInfo detail = details.get(rsrcNo);
-            if (detail == null)
-                continue;
-
-            repository.findBySourceAndExternalId(ResourceSource.SHARENURI, rsrcNo)
-                    .ifPresent(resource -> resource.applyGongyunuriDetail(detail.fee(), detail.subCategory()));
+            return Map.of();
         }
     }
 }
