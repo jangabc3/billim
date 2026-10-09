@@ -44,8 +44,8 @@ dependencies {
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
 
-    // API 문서화
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
+    // API 문서화 (2.6.0은 Spring Framework 6.2와 맞지 않아 /v3/api-docs가 500을 냈다)
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9'
 
     // 운영 모니터링 — 헬스체크(/actuator/health)용
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
@@ -72,4 +72,3 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
 }
-
