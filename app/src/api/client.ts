@@ -123,12 +123,34 @@ export interface NearbyParams {
   [key: string]: unknown;
 }
 
+// 서버가 내려주는 페이지 응답 형식 (Spring Data PagedModel)
+interface ServerPage<T> {
+  content: T[];
+  page: {
+    size: number;
+    number: number;
+    totalElements: number;
+    totalPages: number;
+  };
+}
+
+// 화면에서 쓰는 형식. 서버 형식이 바뀌어도 화면 코드는 건드리지 않도록 여기서 변환한다.
 interface PageResponse<T> {
   content: T[];
   totalElements: number;
   totalPages: number;
   number: number;
   size: number;
+}
+
+function toPageResponse<T>(server: ServerPage<T>): PageResponse<T> {
+  return {
+    content: server.content,
+    totalElements: server.page.totalElements,
+    totalPages: server.page.totalPages,
+    number: server.page.number,
+    size: server.page.size,
+  };
 }
 
 function toQueryString(params: Record<string, unknown>): string {
@@ -143,14 +165,18 @@ function toQueryString(params: Record<string, unknown>): string {
 }
 
 export const resourceApi = {
-  search: (params: SearchParams) =>
-    request<PageResponse<PublicResource>>(
-      `/resources/search${toQueryString(params)}`,
+  search: async (params: SearchParams): Promise<PageResponse<PublicResource>> =>
+    toPageResponse(
+      await request<ServerPage<PublicResource>>(
+        `/resources/search${toQueryString(params)}`,
+      ),
     ),
 
-  nearby: (params: NearbyParams) =>
-    request<PageResponse<PublicResource>>(
-      `/resources/nearby${toQueryString(params)}`,
+  nearby: async (params: NearbyParams): Promise<PageResponse<PublicResource>> =>
+    toPageResponse(
+      await request<ServerPage<PublicResource>>(
+        `/resources/nearby${toQueryString(params)}`,
+      ),
     ),
 
   getOne: (id: number) => request<PublicResource>(`/resources/${id}`),
