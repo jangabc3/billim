@@ -1,6 +1,8 @@
 package com.billim.service.resource;
 
 import com.billim.common.Times;
+import com.billim.common.error.ApiException;
+import com.billim.common.error.ErrorCode;
 import com.billim.domain.resource.FavoriteResource;
 import com.billim.repository.FavoriteResourceRepository;
 import com.billim.repository.PublicResourceRepository;
@@ -39,10 +41,10 @@ public class FavoriteResourceService {
     @Transactional
     public void add(Long userId, Long publicResourceId) {
         if (!userRepository.existsById(userId)) {
-            throw new IllegalArgumentException("존재하지 않는 사용자입니다: " + userId);
+            throw new ApiException(ErrorCode.USER_NOT_FOUND);
         }
         if (!publicResourceRepository.existsById(publicResourceId)) {
-            throw new IllegalArgumentException("존재하지 않는 자원입니다: " + publicResourceId);
+            throw new ApiException(ErrorCode.RESOURCE_NOT_FOUND);
         }
 
         favoriteResourceRepository.insertIgnore(userId, publicResourceId, Times.now());

@@ -1,5 +1,7 @@
 package com.billim.domain.reservation;
 
+import com.billim.common.error.ApiException;
+import com.billim.common.error.ErrorCode;
 import com.billim.domain.item.RentalItem;
 import com.billim.domain.user.User;
 import jakarta.persistence.*;
@@ -57,7 +59,7 @@ public class WaitlistEntry {
 
     public void cancel() {
         if (this.status == WaitlistStatus.CONVERTED || this.status == WaitlistStatus.EXPIRED) {
-            throw new IllegalStateException("이미 종료된 대기 신청은 취소할 수 없습니다.");
+            throw new ApiException(ErrorCode.WAITLIST_ALREADY_CLOSED);
         }
         this.status = WaitlistStatus.EXPIRED;
     }

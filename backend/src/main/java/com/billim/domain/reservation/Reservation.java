@@ -1,5 +1,7 @@
 package com.billim.domain.reservation;
 
+import com.billim.common.error.ApiException;
+import com.billim.common.error.ErrorCode;
 import com.billim.domain.item.RentalItem;
 import com.billim.domain.user.User;
 import jakarta.persistence.*;
@@ -66,7 +68,7 @@ public class Reservation {
 
     public void cancel() {
         if (this.status == ReservationStatus.RETURNED || this.status == ReservationStatus.CANCELED) {
-            throw new IllegalStateException("이미 종료된 예약은 취소할 수 없습니다.");
+            throw new ApiException(ErrorCode.RESERVATION_ALREADY_CLOSED);
         }
         this.status = ReservationStatus.CANCELED;
     }
@@ -78,8 +80,7 @@ public class Reservation {
 
     private void require(ReservationStatus expected) {
         if (this.status != expected) {
-            throw new IllegalStateException(
-                    String.format("%s 상태에서만 가능한 전이입니다. 현재 상태: %s", expected, this.status));
+            throw new ApiException(ErrorCode.RESERVATION_INVALID_STATE);
         }
     }
 

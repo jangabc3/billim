@@ -1,5 +1,7 @@
 package com.billim.service.reservation;
 
+import com.billim.common.error.ApiException;
+import com.billim.common.error.ErrorCode;
 import com.billim.domain.item.Inventory;
 import com.billim.domain.reservation.Reservation;
 import com.billim.repository.InventoryRepository;
@@ -13,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 재고(Inventory)는 낙관적 락(@Version)이 걸려 있어, 동시에 여러 사용자가
  * 마지막 재고 하나를 두고 예약을 시도하면 한쪽만 성공하고 나머지는
  * OptimisticLockingFailureException이 발생한다. 여기서는 소량 재시도로 흡수하고,
- * 재시도를 다 써도 실패하면 "재고 없음"으로 취급해 대기 신청을 유도한다.
+ * 재시도를 다 써도 실패하면 RESERVATION_CONTENTION(409)으로 응답한다.
  *
  * 실제 예약 1회 시도(reserveOnce)는 InventoryReservationExecutor에 위임한다 —
  * 같은 클래스 안에서 @Transactional 메서드를 this.로 호출하면 스프링 프록시를 우회해서
@@ -46,19 +48,19 @@ public class ReservationService {
                 return reservationExecutor.reserveOnce(userId, rentalItemId);
             } catch (OptimisticLockingFailureException e) {
                 if (attempt == MAX_RETRY) {
-                    throw new IllegalStateException("일시적으로 재고 경쟁이 많습니다. 잠시 후 다시 시도해주세요.", e);
+                    throw new ApiException(ErrorCode.RESERVATION_CONTENTION, e);
                 }
                 // 재시도 — 다음 루프에서 최신 버전을 다시 읽어와 재계산한다.
             }
         }
-        throw new IllegalStateException("예약 처리에 실패했습니다.");
+        // 위 루프는 항상 return 또는 throw로 끝나므로 도달하지 않는다.
+        throw new ApiException(ErrorCode.COMMON_INTERNAL_ERROR);
     }
 
     /** 예약 취소 — 재고를 원복한다. */
     @Transactional
     public void cancel(Long reservationId) {
-        Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 예약입니다: " + reservationId));
+        Reservation reservation = findReservation(reservationId);
         reservation.cancel();
 
         inventoryRepository.findByRentalItemId(reservation.getRentalItem().getId())
@@ -68,26 +70,32 @@ public class ReservationService {
     /** 대여 시작 — 사용자가 실제로 물건을 찾으러 왔을 때, 담당자가 처리한다. */
     @Transactional
     public void startRent(Long reservationId) {
-        Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 예약입니다: " + reservationId));
+        Reservation reservation = findReservation(reservationId);
         reservation.markRented();
 
-        inventoryRepository.findByRentalItemId(reservation.getRentalItem().getId())
-                .orElseThrow(() -> new IllegalStateException("재고 정보가 없습니다."))
-                .startRent();
+        findInventory(reservation.getRentalItem().getId()).startRent();
     }
 
     /** 반납 완료 처리 — 재고를 원복하고, 대기자가 있으면 1순위에게 알림을 보낸다. */
     @Transactional
     public void returnItem(Long reservationId) {
-        Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 예약입니다: " + reservationId));
+        Reservation reservation = findReservation(reservationId);
         reservation.markReturned();
 
-        inventoryRepository.findByRentalItemId(reservation.getRentalItem().getId())
-                .orElseThrow(() -> new IllegalStateException("재고 정보가 없습니다."))
-                .returnOne();
+        findInventory(reservation.getRentalItem().getId()).returnOne();
 
         waitlistService.notifyNextInLine(reservation.getRentalItem().getId());
+    }
+
+    private Reservation findReservation(Long reservationId) {
+        return reservationRepository.findById(reservationId)
+                .orElseThrow(() -> new ApiException(ErrorCode.RESERVATION_NOT_FOUND));
+    }
+
+    /** 재고 레코드가 없는 건 사용자 잘못이 아니라 데이터 불일치라서 500으로 처리한다(상세는 로그에만). */
+    private Inventory findInventory(Long rentalItemId) {
+        return inventoryRepository.findByRentalItemId(rentalItemId)
+                .orElseThrow(() -> new ApiException(ErrorCode.COMMON_INTERNAL_ERROR,
+                        "재고 정보가 없습니다. rentalItemId=" + rentalItemId));
     }
 }

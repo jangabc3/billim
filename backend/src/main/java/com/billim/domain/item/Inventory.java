@@ -1,5 +1,7 @@
 package com.billim.domain.item;
 
+import com.billim.common.error.ApiException;
+import com.billim.common.error.ErrorCode;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -56,7 +58,7 @@ public class Inventory {
     /** 예약 확정: 대여 가능 수량을 예약 수량으로 이동. 재고 없으면 예외. */
     public void reserveOne() {
         if (availableQuantity <= 0) {
-            throw new IllegalStateException("재고가 없습니다. 대기 신청이 필요합니다.");
+            throw new ApiException(ErrorCode.ITEM_OUT_OF_STOCK);
         }
         availableQuantity -= 1;
         reservedQuantity += 1;
@@ -80,6 +82,11 @@ public class Inventory {
         availableQuantity += 1;
     }
 
-    public int getAvailableQuantity() { return availableQuantity; }
-    public Long getVersion() { return version; }
+    public int getAvailableQuantity() {
+        return availableQuantity;
+    }
+
+    public Long getVersion() {
+        return version;
+    }
 }

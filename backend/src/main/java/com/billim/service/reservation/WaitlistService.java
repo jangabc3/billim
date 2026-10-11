@@ -1,6 +1,7 @@
 package com.billim.service.reservation;
 
-import com.billim.domain.item.Inventory;
+import com.billim.common.error.ApiException;
+import com.billim.common.error.ErrorCode;
 import com.billim.domain.item.RentalItem;
 import com.billim.domain.reservation.Reservation;
 import com.billim.domain.reservation.WaitlistEntry;
@@ -44,9 +45,9 @@ public class WaitlistService {
     @Transactional
     public WaitlistEntry join(Long userId, Long rentalItemId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다: " + userId));
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
         RentalItem rentalItem = rentalItemRepository.findById(rentalItemId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 물품입니다: " + rentalItemId));
+                .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "존재하지 않는 물품입니다."));
 
         WaitlistEntry entry = new WaitlistEntry(user, rentalItem);
         return waitlistRepository.save(entry);
@@ -54,9 +55,7 @@ public class WaitlistService {
 
     @Transactional
     public void cancel(Long waitlistId) {
-        WaitlistEntry entry = waitlistRepository.findById(waitlistId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 대기 신청입니다: " + waitlistId));
-        entry.cancel();
+        findEntry(waitlistId).cancel();
     }
 
     @Transactional
@@ -68,17 +67,18 @@ public class WaitlistService {
 
     @Transactional
     public Reservation confirm(Long waitlistId) {
-        WaitlistEntry entry = waitlistRepository.findById(waitlistId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 대기 신청입니다: " + waitlistId));
+        WaitlistEntry entry = findEntry(waitlistId);
 
         if (entry.getStatus() != WaitlistStatus.NOTIFIED) {
-            throw new IllegalStateException("알림을 받은 대기 신청만 확정할 수 있습니다.");
+            throw new ApiException(ErrorCode.WAITLIST_NOT_NOTIFIED);
         }
 
         entry.convertToReservation();
 
-        inventoryRepository.findByRentalItemId(entry.getRentalItem().getId())
-                .orElseThrow(() -> new IllegalStateException("재고 정보가 없습니다."))
+        Long rentalItemId = entry.getRentalItem().getId();
+        inventoryRepository.findByRentalItemId(rentalItemId)
+                .orElseThrow(() -> new ApiException(ErrorCode.COMMON_INTERNAL_ERROR,
+                        "재고 정보가 없습니다. rentalItemId=" + rentalItemId))
                 .reserveOne();
 
         LocalDateTime expiresAt = LocalDateTime.now().plusHours(NO_SHOW_EXPIRE_HOURS);
@@ -95,5 +95,10 @@ public class WaitlistService {
             entry.expireNotification();
             notifyNextInLine(entry.getRentalItem().getId());
         }
+    }
+
+    private WaitlistEntry findEntry(Long waitlistId) {
+        return waitlistRepository.findById(waitlistId)
+                .orElseThrow(() -> new ApiException(ErrorCode.WAITLIST_NOT_FOUND));
     }
 }
