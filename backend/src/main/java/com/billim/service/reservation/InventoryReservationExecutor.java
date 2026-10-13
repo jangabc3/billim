@@ -1,5 +1,7 @@
 package com.billim.service.reservation;
 
+import com.billim.common.error.ApiException;
+import com.billim.common.error.ErrorCode;
 import com.billim.domain.item.Inventory;
 import com.billim.domain.item.RentalItem;
 import com.billim.domain.reservation.Reservation;
@@ -22,36 +24,38 @@ import java.time.LocalDateTime;
 @Component
 public class InventoryReservationExecutor {
 
-    private static final long NO_SHOW_EXPIRE_HOURS = 24;
+        private static final long NO_SHOW_EXPIRE_HOURS = 24;
 
-    private final InventoryRepository inventoryRepository;
-    private final ReservationRepository reservationRepository;
-    private final RentalItemRepository rentalItemRepository;
-    private final UserRepository userRepository;
+        private final InventoryRepository inventoryRepository;
+        private final ReservationRepository reservationRepository;
+        private final RentalItemRepository rentalItemRepository;
+        private final UserRepository userRepository;
 
-    public InventoryReservationExecutor(InventoryRepository inventoryRepository,
-            ReservationRepository reservationRepository,
-            RentalItemRepository rentalItemRepository,
-            UserRepository userRepository) {
-        this.inventoryRepository = inventoryRepository;
-        this.reservationRepository = reservationRepository;
-        this.rentalItemRepository = rentalItemRepository;
-        this.userRepository = userRepository;
-    }
+        public InventoryReservationExecutor(InventoryRepository inventoryRepository,
+                        ReservationRepository reservationRepository,
+                        RentalItemRepository rentalItemRepository,
+                        UserRepository userRepository) {
+                this.inventoryRepository = inventoryRepository;
+                this.reservationRepository = reservationRepository;
+                this.rentalItemRepository = rentalItemRepository;
+                this.userRepository = userRepository;
+        }
 
-    @Transactional
-    public Reservation reserveOnce(Long userId, Long rentalItemId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다: " + userId));
-        RentalItem rentalItem = rentalItemRepository.findById(rentalItemId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 물품입니다: " + rentalItemId));
-        Inventory inventory = inventoryRepository.findByRentalItemId(rentalItemId)
-                .orElseThrow(() -> new IllegalStateException("재고 정보가 없습니다: " + rentalItemId));
+        @Transactional
+        public Reservation reserveOnce(Long userId, Long rentalItemId) {
+                User user = userRepository.findById(userId)
+                                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+                RentalItem rentalItem = rentalItemRepository.findById(rentalItemId)
+                                .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "존재하지 않는 물품입니다."));
+                // 재고 레코드가 없는 건 사용자 잘못이 아니라 데이터 불일치 — 500(상세는 로그에만)
+                Inventory inventory = inventoryRepository.findByRentalItemId(rentalItemId)
+                                .orElseThrow(() -> new ApiException(ErrorCode.COMMON_INTERNAL_ERROR,
+                                                "재고 정보가 없습니다. rentalItemId=" + rentalItemId));
 
-        inventory.reserveOne();
+                inventory.reserveOne();
 
-        LocalDateTime expiresAt = LocalDateTime.now().plusHours(NO_SHOW_EXPIRE_HOURS);
-        Reservation reservation = new Reservation(user, rentalItem, expiresAt);
-        return reservationRepository.save(reservation);
-    }
+                LocalDateTime expiresAt = LocalDateTime.now().plusHours(NO_SHOW_EXPIRE_HOURS);
+                Reservation reservation = new Reservation(user, rentalItem, expiresAt);
+                return reservationRepository.save(reservation);
+        }
 }

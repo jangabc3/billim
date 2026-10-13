@@ -1,12 +1,13 @@
 package com.billim.api.reservation;
 
+import com.billim.common.error.ApiException;
+import com.billim.common.error.ErrorCode;
 import com.billim.config.security.CustomUserDetails;
 import com.billim.domain.reservation.Reservation;
 import com.billim.repository.ReservationRepository;
 import com.billim.service.reservation.ReservationService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -42,6 +43,17 @@ public class ReservationController {
                 .map(this::toResponse)
                 .toList();
         return ResponseEntity.ok(responses);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ReservationResponse> getOne(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long id) {
+        // 없는 예약과 남의 예약을 똑같이 404로 처리한다 — 존재 여부를 노출하지 않기 위해.
+        Reservation reservation = reservationRepository.findWithRentalItemById(id)
+                .filter(r -> r.getUser().getId().equals(userDetails.getUserId()))
+                .orElseThrow(() -> new ApiException(ErrorCode.RESERVATION_NOT_FOUND));
+        return ResponseEntity.ok(toResponse(reservation));
     }
 
     @DeleteMapping("/{id}")
@@ -85,7 +97,7 @@ public class ReservationController {
                 .map(r -> r.getUser().getId().equals(userDetails.getUserId()))
                 .orElse(false);
         if (!owns) {
-            throw new ReservationNotFoundException(reservationId);
+            throw new ApiException(ErrorCode.RESERVATION_NOT_FOUND);
         }
     }
 
@@ -98,22 +110,11 @@ public class ReservationController {
      */
     private void requireInstitutionAccess(CustomUserDetails userDetails, Long reservationId) {
         Reservation reservation = reservationRepository.findWithRentalItemAndInstitutionById(reservationId)
-                .orElseThrow(() -> new ReservationNotFoundException(reservationId));
+                .orElseThrow(() -> new ApiException(ErrorCode.RESERVATION_NOT_FOUND));
         Long institutionId = reservation.getRentalItem().getInstitution().getId();
         if (!userDetails.getUser().canManage(institutionId)) {
-            throw new AccessDeniedException("이 기관의 예약을 처리할 권한이 없습니다.");
+            throw new ApiException(ErrorCode.RESERVATION_ACCESS_DENIED);
         }
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<ReservationResponse> getOne(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable Long id) {
-        return reservationRepository.findWithRentalItemById(id)
-                .filter(r -> r.getUser().getId().equals(userDetails.getUserId()))
-                .map(this::toResponse)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
     }
 
     private ReservationResponse toResponse(Reservation r) {
