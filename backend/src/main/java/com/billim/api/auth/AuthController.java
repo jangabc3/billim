@@ -1,5 +1,7 @@
 package com.billim.api.auth;
 
+import com.billim.common.error.ApiException;
+import com.billim.common.error.ErrorCode;
 import com.billim.config.security.CustomUserDetails;
 import com.billim.config.security.JwtTokenProvider;
 import com.billim.domain.user.User;
@@ -29,7 +31,7 @@ public class AuthController {
     @PostMapping("/signup")
     public ResponseEntity<Void> signup(@Valid @RequestBody SignupRequest request) {
         if (userRepository.existsByEmail(request.email())) {
-            throw new IllegalArgumentException("이미 가입된 이메일입니다: " + request.email());
+            throw new ApiException(ErrorCode.AUTH_EMAIL_DUPLICATED);
         }
         String encodedPassword = passwordEncoder.encode(request.password());
         User user = new User(request.email(), encodedPassword, request.name(), UserRole.USER);
@@ -39,17 +41,18 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+        // 이메일이 없는 경우와 비밀번호가 틀린 경우를 같은 응답으로 처리한다(계정 존재 여부 노출 방지).
         User user = userRepository.findByEmail(request.email())
-                .orElseThrow(() -> new IllegalArgumentException("이메일 또는 비밀번호가 일치하지 않습니다."));
+                .orElseThrow(() -> new ApiException(ErrorCode.AUTH_INVALID_CREDENTIALS));
 
         if (user.isLocked()) {
-            throw new AccountLockedException();
+            throw new ApiException(ErrorCode.AUTH_ACCOUNT_LOCKED);
         }
 
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
             user.recordLoginFailure();
             userRepository.save(user);
-            throw new IllegalArgumentException("이메일 또는 비밀번호가 일치하지 않습니다.");
+            throw new ApiException(ErrorCode.AUTH_INVALID_CREDENTIALS);
         }
 
         user.recordLoginSuccess();
